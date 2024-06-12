@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\TelegramWebhook\TelegramWebhookController;
+use App\Http\Controllers\TelegramWebhook\WebhookController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
@@ -13,3 +14,4 @@ Route::get('/webhook-data', function () {
 });
 
 Route::post('/webhook', [TelegramWebhookController::class, 'index']);
+// Route::post('/webhook', WebhookController::class);

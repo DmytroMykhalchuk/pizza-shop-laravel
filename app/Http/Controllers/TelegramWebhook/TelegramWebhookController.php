@@ -6,7 +6,7 @@ use App\Actions\TelegramWebhook\TelegramWebhookAction;
 use App\Http\Controllers\BaseController;
 use App\Http\Requests\TelegramWebhook\SetWebhookRequest;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Http\Response;
 
 class TelegramWebhookController extends BaseController
 {
@@ -19,13 +19,14 @@ class TelegramWebhookController extends BaseController
 
     public function index(Request $request)
     {
-        Cache::forever('wd', $request->all());
-        return 200;
+        // Cache::forever('wd', $request->all());
+        
+        return response(null, Response::HTTP_OK);
     }
 
-    public function setWebhook(SetWebhookRequest $setWebhookRequest)
+    public function setWebhook()
     {
-        $url = $setWebhookRequest->getUrl();
+        $url = env('TELEGRAM_WEBHOOK_URL');
         $this->webhookAction->setWebhook($url);
     }
 }

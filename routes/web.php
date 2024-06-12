@@ -10,7 +10,7 @@ Route::get('/', function () {
 Route::get('/send-message', function () {
     $text = (string)view('telegram.test');
     $response = Http::post('https://api.telegram.org/bot' . env('TELEGRAM_BOT_TOKEN') . '/sendMessage', [
-        'chat_id' => env('TELEGRAM_TARGET_USER'),
+        'chat_id' => env('TELEGRAM_TARGET_USER_ID'),
         'text' => $text,
         'parse_mode' => 'html',
         'reply_markup' => [

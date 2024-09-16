@@ -20,7 +20,7 @@ class TelegramWebhookController extends BaseController
     public function index(Request $request)
     {
         // Cache::forever('wd', $request->all());
-        
+
         return response(null, Response::HTTP_OK);
     }
 

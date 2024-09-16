@@ -3,6 +3,10 @@
 namespace App\Http\Telegram;
 
 use App\Models\Pizza;
+use DefStudio\Telegraph\DTO\InlineQuery;
+use DefStudio\Telegraph\DTO\InlineQueryResult;
+use DefStudio\Telegraph\DTO\InlineQueryResultArticle;
+use DefStudio\Telegraph\DTO\InlineQueryResultPhoto;
 use DefStudio\Telegraph\Enums\ChatActions;
 use DefStudio\Telegraph\Facades\Telegraph;
 use DefStudio\Telegraph\Handlers\WebhookHandler;
@@ -14,6 +18,8 @@ use DefStudio\Telegraph\Models\TelegraphChat;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Stringable;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use Throwable;
 
 class Handler extends WebhookHandler
 {
@@ -44,7 +50,7 @@ class Handler extends WebhookHandler
         $this->reply('Hi! again...');
     }
 
-    public function actions(): void
+    public function actions()
     {
         $this->reply('Hi! again...');
 
@@ -58,6 +64,8 @@ class Handler extends WebhookHandler
                         ->param('channel_name', '5'),
                 ])
             )->send();
+
+        return http_response_code(200);
     }
 
     public function like(): void
@@ -68,6 +76,12 @@ class Handler extends WebhookHandler
     public function subscribe(): void
     {
         $this->reply("Ty for {$this->data->get('channel_name')}");
+    }
+
+    public function ttt()
+    {
+        $this->reply('1');
+        $this->chat->setBaseUrl('https://docs.defstudio.it/telegraph/v1/api/bots')->message('secret message')->send();
     }
 
     public function test()
@@ -113,31 +127,69 @@ class Handler extends WebhookHandler
         /**************************************************/
 
 
-        Telegraph::message('hello world')
+        $message = $chat->message('hello world')
             ->keyboard(Keyboard::make()->buttons([
-                // Button::make("🗑️ Delete")->action("delete")->param('id', 190),
-                // Button::make("📖 Mark as Read")->action("read")->param('id', 190),
-                // Button::make("👀 Open")->url('https://test.it'),
+                Button::make("🗑️ Delete")->action("delete")->param('id', 190),
+                Button::make("📖 Mark as Read")->action("read")->param('id', 190),
+                Button::make("👀 Open")->url('https://test.it'),
+                // Button::make("👀 Search")->,
             ])->chunk(2))->send();
+
+        // $this->chat->
+        Log::info($message);
     }
 
-    public function delete(int $id)
+    public function dismiss(int $id)
     {
+        $notificationId = $this->data->get('id');
+        $this->reply('notificationId: ' . $notificationId);
+
         // Log::info($id);
         // Telegraph::deleteMessage($id);
         // Telegraph::message('Ty!')->send();
     }
 
+    public function handleInlineQuery(InlineQuery $inlineQuery): void
+    {
+        $query = $inlineQuery->query(); // "pest logo"
+        // if (is_int(!$query)) {
+        //     return;
+        // }
+        $query = (int)$query;
+        $queryNext = $query + 1;
+        // Log::info($inlineQuery->id());
+
+        Log::info(asset('assets/images/pepperoni.png'));
+
+        $response =    $this->bot->answerInlineQuery($inlineQuery->id(), [
+            InlineQueryResultArticle::make(random_int(2, 1000), 'Title', '/rows')->thumbUrl(asset('assets/images/pepperoni.png'))->description('fd'),
+            InlineQueryResultPhoto::make(random_int(2, 1000), asset('assets/images/pepperoni.png'), asset('assets/images/pepperoni.png'))
+                ->caption('Light Logo')->width(100)->height(100)->title('title')->description('dfd'),
+                InlineQueryResultPhoto::make(random_int(2, 1000), asset('assets/images/margarita-min.png'), asset('assets/images/margarita-min.png'))
+                ->caption('Light Logo')->width(100)->height(100)->title('title')->description('dfd'),
+        ])->send();
+
+        Log::info($response);
+        // $this->bot->
+
+        // $this->bot->answerInlineQuery($inlineQuery->id(), [
+        //     InlineQueryResultPhoto::make("Light", asset('assets/images/pepperoni.png'), asset('assets/images/pepperoni.png'))
+        //         ->caption('Duck'),
+        //     InlineQueryResultPhoto::make($queryNext . "-dark", "https://random-d.uk/api/v2/$queryNext.jpg", "https://random-d.uk/api/v2/$queryNext.jpg")
+        //         ->caption('Duck' . $queryNext),
+        // ])->send();
+    }
+
     public function btn()
     {
-        Telegraph::message('hello world')
+        $this->chat->message('hello world')
             ->keyboard(Keyboard::make()->buttons([
                 Button::make('Delete')->action('delete')->param('id', '42'),
                 Button::make('open')->url('https://test.it'),
                 Button::make('Web App')->webApp('https://web-app.test.it'),
                 // Button::make('Login Url')->loginUrl('https://loginUrl.test.it'),
 
-                Button::make('switch')->switchInlineQuery('foo')->currentChat(),
+                Button::make('switch')->switchInlineQuery('')->currentChat(),
             ]))->send();
     }
 
@@ -169,8 +221,10 @@ class Handler extends WebhookHandler
                 Button::make('open')->url('https://test.it'),
             ])
             ->rightToLeft();
-        Telegraph::message('hello world')->keyboard($keyboard)->send();
+        $this->chat->message('hello world')->keyboard($keyboard)->send();
     }
+
+    public function delete() {}
 
     public function rk()
     {
@@ -255,5 +309,22 @@ class Handler extends WebhookHandler
         } else {
             $this->reply('wtf?');
         }
+    }
+
+    protected function onFailure(Throwable $throwable): void
+    {
+        if ($throwable instanceof NotFoundHttpException) {
+            throw $throwable;
+        }
+
+        report($throwable);
+
+        $this->reply('sorry man, I failed');
+    }
+
+    protected function handleChatMessage(Stringable $text): void
+    {
+        // in this example, a received message is sent back to the chat
+        $this->chat->html("Received: $text")->send();
     }
 }

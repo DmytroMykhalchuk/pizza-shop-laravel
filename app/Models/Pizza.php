@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Pizza extends Model
 {
@@ -24,9 +25,9 @@ class Pizza extends Model
         return $this->belongsToMany(Ingredient::class, 'pizza_ingredients')->withPivot('quantity');
     }
 
-    public function sizes(): BelongsToMany
+    public function sizes(): HasMany
     {
-        return $this->belongsToMany(PizzaSize::class, 'pizza_sizes');
+        return $this->hasMany(PizzaSize::class);
     }
 
     public function recommendedPorducts(): BelongsToMany

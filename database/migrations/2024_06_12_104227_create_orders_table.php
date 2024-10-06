@@ -18,8 +18,10 @@ return new class extends Migration
             $table->foreignId('telegraph_chat_id')->nullable()->constrained('telegraph_chats')->nullOnDelete();
             $table->enum('delivery_type', Order::DELIVERY_TYPES);
             $table->enum('payment_type', Order::PAYMENT_TYPES);
-            $table->boolean('is_paid');
-            $table->datetime('paid_at');
+            $table->string('invoice_link')->nullable();
+            $table->string('invoice_id')->nullable();
+            $table->string('message_id');
+            $table->datetime('paid_at')->nullable();
             $table->timestamps();
         });
     }

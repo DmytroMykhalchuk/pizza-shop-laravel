@@ -29,14 +29,15 @@ class Order extends Model
     protected $table = 'orders';
 
     protected $fillable = [
-        'is_paid',
         'delivery_type',
         'payment_type',
-        'is_paid',
         'paid_at',
+        'invoice_link',
+        'invoice_id',
     ];
 
     protected $guarded = [
         'telegraph_chat_id',
+        'message_id',
     ];
 }

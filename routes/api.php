@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Category\CategoryController;
+use App\Http\Controllers\Payments\PaymentsController;
 use App\Http\Controllers\TelegramWebhook\TelegramWebhookController;
 use App\Http\Controllers\TelegramWebhook\WebhookController;
 use Illuminate\Http\Request;
@@ -18,4 +19,16 @@ Route::get('/wd', function () {
 
 Route::prefix('categories')->group(function () {
     Route::get('/', [CategoryController::class, 'index']);
+});
+
+Route::get('/test', function () {
+    // app()->setLocale('uk');
+    // return __('test');
+    // dd(route('monobank.webhook'));
+    return now();
+});
+
+Route::prefix('payments')->group(function(){
+    Route::post('/monobank/webhook', [PaymentsController::class, 'monobankHandler'])->name('monobank.webhook');
+    Route::get('/monobank/key', [PaymentsController::class, 'loadPublicKey'])->name('monobank.webhook');
 });

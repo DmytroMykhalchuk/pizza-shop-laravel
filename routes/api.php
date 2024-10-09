@@ -30,5 +30,5 @@ Route::get('/test', function () {
 
 Route::prefix('payments')->group(function(){
     Route::post('/monobank/webhook', [PaymentsController::class, 'monobankHandler'])->name('monobank.webhook');
-    Route::get('/monobank/key', [PaymentsController::class, 'loadPublicKey'])->name('monobank.webhook');
+    Route::get('/monobank/key', [PaymentsController::class, 'loadPublicKey'])->name('monobank.key');
 });

@@ -16,8 +16,9 @@ return new class extends Migration
         Schema::create('orders', function (Blueprint $table) {
             $table->id()->startingValue(10000);
             $table->foreignId('telegraph_chat_id')->nullable()->constrained('telegraph_chats')->nullOnDelete();
-            $table->enum('delivery_type', Order::DELIVERY_TYPES);
-            $table->enum('payment_type', Order::PAYMENT_TYPES);
+            $table->string('delivery_type');
+            $table->string('payment_type');
+            $table->string('status');
             $table->string('invoice_link')->nullable();
             $table->string('invoice_id')->nullable();
             $table->string('message_id');

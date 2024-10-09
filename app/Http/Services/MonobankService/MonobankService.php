@@ -75,6 +75,32 @@ class MonobankService
         }
     }
 
+    public function cancelInvoice(string $invoiceId): bool
+    {
+        $headers = [
+            'x-token' => env('MONOBANK_API_KEY'),
+            'x-cms' => env('APP_NAME'),
+        ];
+
+        $payload = [
+            'invoiceId' => $invoiceId,
+        ];
+
+        $url = $this->urlPrefix . '/merchant/invoice/cancel?';
+        try {
+            $this->client->post($url, [
+                'json' => $payload,
+                'headers' => $headers,
+            ]);
+
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Monobank error canceling payment: ' . $e->getMessage());
+            $e->getMessage();
+            return false;
+        }
+    }
+
     public function getPublicKey()
     {
         $headers = [
@@ -95,6 +121,27 @@ class MonobankService
             Log::error('Monobank error : ' . $e->getMessage());
             $e->getMessage();
             return false;
+        }
+    }
+
+    public function getPdfInvoice(string $invoiceId)
+    {
+        $headers = [
+            'x-token' => env('MONOBANK_API_KEY'),
+            'x-cms' => env('APP_NAME'),
+        ];
+
+        $url = $this->urlPrefix . '/merchant/invoice/receipt?invoiceId=' . $invoiceId;
+        try {
+            $response = $this->client->get($url, [
+                'headers' => $headers,
+            ]);
+
+            return json_decode($response->getBody()->getContents());
+        } catch (\Exception $e) {
+            Log::error('Monobank error pdf invoce retreiving: ' . $e->getMessage());
+            $e->getMessage();
+            return (object)[];
         }
     }
 }

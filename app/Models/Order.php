@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use DefStudio\Telegraph\DTO\Chat;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Order extends Model
 {
@@ -19,12 +21,16 @@ class Order extends Model
 
     public const ONLINE_TYPE = 'online';
     public const OFFLINE_TYPE = 'offline';
+    public const MONOBANK_TYPE = 'mono';
 
     public const PAYMENT_TYPES = [
         self::ONLINE_TYPE,
         self::OFFLINE_TYPE,
     ];
 
+    public const STATUS_WAITING = 'waiting';
+    public const STATUS_IN_ROAD = 'in_road';
+    public const STATUS_COMPLETED = 'completed';
 
     protected $table = 'orders';
 
@@ -34,10 +40,16 @@ class Order extends Model
         'paid_at',
         'invoice_link',
         'invoice_id',
+        'status',
     ];
 
     protected $guarded = [
         'telegraph_chat_id',
         'message_id',
     ];
+
+    public function chat(): HasOne
+    {
+        return $this->hasOne(Chat::class, 'id', 'telegraph_chat_id');
+    }
 }

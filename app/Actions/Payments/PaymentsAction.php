@@ -51,15 +51,20 @@ class PaymentsAction
             $publicKey = openssl_get_publickey(base64_decode($pubKeyBase64));
 
             $result = openssl_verify($message, $signature, $publicKey, OPENSSL_ALGO_SHA256);
+            Log::info('result' . $result);
             if ($result === 1) {
-                $order->paid_at = Carbon::parse($response['modifiedDate']);
-                $order->save();
+                $this->hanleSuccessPayment($order, $response);
             } else {
             }
         } else if ($response['status'] === $successStatus) {
-            $order->paid_at = Carbon::parse($response['modifiedDate']);
-            $order->save();
+            $this->hanleSuccessPayment($order, $response);
         }
         return http_response_code(200);
+    }
+
+    private function hanleSuccessPayment(Order $order, $response)
+    {
+        $order->paid_at = Carbon::parse($response['modifiedDate']);
+        $order->save();
     }
 }

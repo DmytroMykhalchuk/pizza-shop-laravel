@@ -3,19 +3,21 @@
 namespace App\Http\Telegram\Actions;
 
 use App\Models\Order;
+use App\Models\OrderPizza;
 use App\Models\Pizza;
 use App\Models\PizzaSize;
 use App\Models\Preorder;
 use DefStudio\Telegraph\Keyboard\Button;
 use DefStudio\Telegraph\Keyboard\Keyboard;
+use Illuminate\Support\Facades\Log;
 
 trait OrderAction
 {
     public function orderPizza()
     {
         $translation = [
-            'message' => __('main.choose_pizza', [], $this->chat->locale),
-            'backText' => __('main.return_back', [], $this->chat->locale),
+            'message'  => __('main.choose_pizza', [], $this->chat->locale),
+            'backText' => __('main.actions.return_back', [], $this->chat->locale),
         ];
 
         $messageId = $this->data->get('messageId');
@@ -43,7 +45,7 @@ trait OrderAction
 
     public function choosePizza()
     {
-        $backText = __('main.return_back', [], $this->chat->locale);
+        $backText = __('main.actions.return_back', [], $this->chat->locale);
 
         $mapImage = [
             1 => 'https://images.unsplash.com/photo-1513104890138-7c749659a591?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxleHBsb3JlLWZlZWR8MXx8fGVufDB8fHx8fA%3D%3D',
@@ -84,8 +86,8 @@ trait OrderAction
     {
         $translation = [
             'backText' => __('main.actions.return_back', [], $this->chat->locale),
-            'total' => __('main.total'),
-            'payment' => __('main.choose_payment_method'),
+            'total'    => __('main.total'),
+            'payment'  => __('main.choose_payment_method'),
         ];
 
         $messageId = $this->data->get('messageId');
@@ -132,12 +134,13 @@ trait OrderAction
     public function orderPay()
     {
         $translation = [
-            'backText' => __('main.actions.return_back', [], $this->chat->locale),
-            'cancel' => __('main.actions.cancel'),
-            'payNow' => __('main.actions.pay_now'),
+            'backText'       => __('main.actions.return_back', [], $this->chat->locale),
+            'cancel'         => __('main.actions.cancel'),
+            'payNow'         => __('main.actions.pay_now'),
             'changePayments' => __('main.actions.change_type_of_payments'),
-            'total' => __('main.total'),
-            'payment' => __('main.payment_type'),
+            'total'          => __('main.total'),
+            'payment'        => __('main.payment_type'),
+            'update'         => __('main.actions.update'),
         ];
 
         $messageId = $this->data->get('messageId');
@@ -171,12 +174,21 @@ trait OrderAction
         $order->invoice_id = $monobankResponse->invoiceId;
         $order->telegraph_chat_id = $this->chat->id;
         $order->message_id = $messageId;
+        $order->total = $total;
         $order->save();
+
+        OrderPizza::create([
+            'order_id' => $order->id,
+            'pizza_id' => $pizza->id,
+            'pizza_size_id' => $size->id,
+            'count' => 1,
+        ]);
 
         $buttons = [
             Button::make($translation['payNow'])->url($monobankResponse->pageUrl),
             Button::make($translation['cancel'])->param('orderId', $order->id)->param('messageId', $messageId)->action('cancelOrder'),
             // Button::make($translation['changePayments'])->param('preorderId', $preorderId)->param('messageId', $messageId)->action('changePaymentType'),
+            Button::make($translation['update'])->action('orderView')->param('messageId', $messageId)->param('orderId', $order->id),
             Button::make($translation['backText'])->param('messageId', $messageId)->action('toPreview'),
         ];
 
@@ -212,7 +224,7 @@ trait OrderAction
                 Button::make($translation['ok'])->action('toPreview')->param('messageId', $messageId),
             ])
             : Keyboard::make()->buttons([
-                Button::make($translation['no'])->action('toPreview')->param('messageId', $messageId),
+                Button::make($translation['no'])->action('orderView')->param('messageId', $messageId)->param('orderId', $orderId),
                 Button::make($translation['yes'])->action('cancelOrderConfirmed')->param('messageId', $messageId)->param('orderId', $orderId),
             ]);
 
@@ -225,5 +237,114 @@ trait OrderAction
     public function changePaymentType()
     {
         $preorderId = $this->data->get('preorderId');
+    }
+
+    public function orderView()
+    {
+        $orderId = $this->data->get('orderId');
+        $messageId = $this->data->get('messageId');
+
+        $order = Order::with(['pizzas' => function ($query) {
+            $query->with('size')->with('pizza');
+            return $query;
+        }])->findOrFail($orderId);
+
+        $translation = [
+            'backText'       => __('main.actions.return_back', [], $this->chat->locale),
+            'cancel'         => __('main.actions.cancel'),
+            'payNow'         => __('main.actions.pay_now'),
+            'changePayments' => __('main.actions.change_type_of_payments'),
+            'total'          => __('main.total'),
+            'toMain'         => __('main.actions.to_main'),
+            'payment'        => __('main.payment_type'),
+            'update'         => __('main.actions.update'),
+            'orderTitle'     => __('main.order_title_id', ['number' => $order->order_id]),
+            'status'         => __('main.status.item'),
+            'orderStatus'    => __('main.status.' . $order->status),
+            'complicity'     => __('main.order_complicity'),
+            'itemCount'      => __('main.item_count'),
+            'statusPaid'     => __('main.paid.paid'),
+            'statusNotPaid'  => __('main.paid.waiting'),
+            'payment'        => __('main.paid.item'),
+            'orderPrice'     => __('main.order_price'),
+        ];
+
+        $message = $translation['orderTitle'] . PHP_EOL . PHP_EOL;
+        $message .= $translation['orderPrice'] . $order->total . '$' . PHP_EOL . PHP_EOL;
+        $message .= $translation['status'] . ': ' . $translation['orderStatus'] . PHP_EOL;
+        $message .= $translation['payment'] . ': ';
+        $message .= $order->paid_at
+            ? $translation['statusPaid']
+            : $translation['statusNotPaid'];
+
+        $message .= PHP_EOL . PHP_EOL . $translation['complicity'] . ': ' . PHP_EOL;
+        foreach ($order->pizzas as $orderPizza) {
+            Log::info($orderPizza);
+            $message .= '- ' . $orderPizza->pizza->name . ' ' . $orderPizza->size->name . ' ';
+            $message .= round($orderPizza->size->price_multiplier * $orderPizza->pizza->base_price, 2) . '$ ';
+            // $message .= $pizza->pivot->count . $translation['itemCount'];
+            $message .= PHP_EOL;
+        }
+
+        Log::info($order);
+        $buttons = [];
+        if (!$order->paid_at) {
+            $buttons[] = Button::make($translation['payNow'])->url($order->invoice_link);
+        }
+
+        $buttons = array_merge($buttons, [
+            Button::make($translation['cancel'])->param('orderId', $order->id)->param('messageId', $messageId)->action('cancelOrder'),
+            // Button::make($translation['changePayments'])->param('preorderId', $preorderId)->param('messageId', $messageId)->action('changePaymentType'),
+            Button::make($translation['update'])->action('orderView')->param('messageId', $messageId)->param('orderId', $orderId),
+            Button::make($translation['toMain'])->action('toPreview')->param('messageId', $messageId),
+        ]);
+
+        $keyboard = Keyboard::make()->buttons($buttons);
+
+        $this->chat
+            ->replaceKeyboard($messageId, $keyboard)
+            ->editCaption($messageId)->message($message)
+            ->send();
+    }
+
+    public function cancelOrderConfirmed()
+    {
+        $translation = [
+            'recharged' => __('main.canceled_posible_recharge'),
+            'success' => __('main.success.order_cancled'),
+            'error' => __('main.error.order_completed'),
+            'toMain' => __('main.actions.to_main'),
+            'back' => __('main.actions.return_back'),
+        ];
+        $orderId = $this->data->get('orderId');
+        $messageId = $this->data->get('messageId');
+
+        $keyboard = Keyboard::make()->buttons([
+            Button::make($translation['toMain'])->action('toPreview')->param('messageId', $messageId)->param('orderId', $orderId),
+        ]);
+
+
+        $order = Order::findOrFail($orderId);
+
+        if ($order->status === Order::STATUS_COMPLETED) {
+            $message = $translation['error'];
+            $keyboard[] = Button::make($translation['back'])->action('orderView')->param('messageId', $messageId);
+        } else {
+            $message = $translation['success'];
+        }
+
+        if ($order->paid_at) {
+            $this->monobankService->invalidInvoiceId($order->invoice_id);
+        } else {
+            $this->monobankService->cancelInvoice($order->invoice_id);
+            $message .= "\n" . $translation['recharged'];
+        }
+
+        $this->chat
+            ->replaceKeyboard($messageId, $keyboard)
+            ->editCaption($messageId)->message($message)
+            ->send();
+
+        return;
     }
 }

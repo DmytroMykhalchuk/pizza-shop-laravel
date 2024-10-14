@@ -3,8 +3,10 @@
 namespace App\Models;
 
 use DefStudio\Telegraph\DTO\Chat;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Order extends Model
@@ -41,6 +43,7 @@ class Order extends Model
         'invoice_link',
         'invoice_id',
         'status',
+        'total',
     ];
 
     protected $guarded = [
@@ -51,5 +54,17 @@ class Order extends Model
     public function chat(): HasOne
     {
         return $this->hasOne(Chat::class, 'id', 'telegraph_chat_id');
+    }
+
+    protected function orderId(): Attribute
+    {
+        return Attribute::make(
+            get: fn() => str_pad($this->id, 3, '0', STR_PAD_LEFT),
+        );
+    }
+
+    public function pizzas(): HasMany
+    {
+        return $this->hasMany(OrderPizza::class, 'order_id', 'id');
     }
 }

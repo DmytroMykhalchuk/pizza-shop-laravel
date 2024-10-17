@@ -6,7 +6,7 @@ return [
     'actions' => [
         'order_pizza' => 'Замовити піццу 🦧',
         'notifications' => 'Сповіщення 🔔',
-        'active_orders' => 'Активні замовлення ⚡',
+        'active_orders' => 'Замовлення ⚡',
         'cancel' => 'Скасувати 📴',
         'pay_now' => 'До оплати 💚',
         'change_type_of_payments' => 'Змінити тип оплати 🍇',
@@ -16,6 +16,8 @@ return [
         'to_main' => 'На головну ⛺',
         'return_back' => 'Повернутися 😌',
         'update' => 'Оновити 🙃',
+        'next_page' => 'Вперед ⏭',
+        'prev_pgae' => 'Назад ⏮',
     ],
     'total' => 'Всього',
     'payment_type' => 'Тип оплати',
@@ -51,4 +53,11 @@ return [
     'order_complicity' => 'Склад замовлення',
     'item_count' => 'шт.',
     'order_price' =>'Ціна на момент замовлення: ',
+    'manage_orders_text' => 'Керуйте вашими замовленнями тут 🎮 :)',
+    
+    'statuses' => [
+        'waiting' => 'В очікуванні ⌛',
+        'in_road' => 'В дорозі 🛵',
+        'completed' => 'Виконано 🏁',
+    ],
 ];

@@ -34,6 +34,12 @@ class Order extends Model
     public const STATUS_IN_ROAD = 'in_road';
     public const STATUS_COMPLETED = 'completed';
 
+    public const STATUSES = [
+        self::STATUS_WAITING,
+        self::STATUS_IN_ROAD,
+        self::STATUS_COMPLETED,
+    ];
+
     protected $table = 'orders';
 
     protected $fillable = [
@@ -44,6 +50,7 @@ class Order extends Model
         'invoice_id',
         'status',
         'total',
+        'user_id',
     ];
 
     protected $guarded = [

@@ -14,6 +14,10 @@ return new class extends Migration
         Schema::table('telegraph_chats', function (Blueprint $table) {
             $table->string('locale')->nullable();
             $table->string('action')->nullable();
+            $table->string('user_id')->nullable();
+            $table->string('first_name')->nullable();
+            $table->string('last_name')->nullable();
+            $table->string('username')->nullable();
             $table->string('last_message_id')->nullable();
         });
     }
@@ -26,6 +30,10 @@ return new class extends Migration
         Schema::table('telegraph_chats', function (Blueprint $table) {
             $table->dropColumn('locale');
             $table->dropColumn('action');
+            $table->dropColumn('user_id');
+            $table->dropColumn('first_name');
+            $table->dropColumn('last_name');
+            $table->dropColumn('username');
             $table->dropColumn('last_message_id');
         });
     }

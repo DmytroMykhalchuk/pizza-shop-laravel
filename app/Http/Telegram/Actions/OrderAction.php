@@ -2,6 +2,7 @@
 
 namespace App\Http\Telegram\Actions;
 
+use App\Http\Services\Paginator\PaginatorService;
 use App\Models\Order;
 use App\Models\OrderPizza;
 use App\Models\Pizza;
@@ -13,6 +14,12 @@ use Illuminate\Support\Facades\Log;
 
 trait OrderAction
 {
+    private array $orderStatusIcon = [
+        Order::STATUS_WAITING => '⌛',
+        Order::STATUS_IN_ROAD => '🛵',
+        Order::STATUS_COMPLETED => '🏁',
+    ];
+
     public function orderPizza()
     {
         $translation = [
@@ -175,6 +182,7 @@ trait OrderAction
         $order->telegraph_chat_id = $this->chat->id;
         $order->message_id = $messageId;
         $order->total = $total;
+        $order->user_id = $this->chat->user_id;
         $order->save();
 
         OrderPizza::create([
@@ -224,9 +232,9 @@ trait OrderAction
                 Button::make($translation['ok'])->action('toPreview')->param('messageId', $messageId),
             ])
             : Keyboard::make()->buttons([
-                Button::make($translation['no'])->action('orderView')->param('messageId', $messageId)->param('orderId', $orderId),
                 Button::make($translation['yes'])->action('cancelOrderConfirmed')->param('messageId', $messageId)->param('orderId', $orderId),
-            ]);
+                Button::make($translation['no'])->action('orderView')->param('messageId', $messageId)->param('orderId', $orderId),
+            ])->chunk(2);
 
         $this->modifiedChat = $this->chat
             ->replaceKeyboard($messageId, $keyboard);
@@ -273,9 +281,11 @@ trait OrderAction
         $message .= $translation['orderPrice'] . $order->total . '$' . PHP_EOL . PHP_EOL;
         $message .= $translation['status'] . ': ' . $translation['orderStatus'] . PHP_EOL;
         $message .= $translation['payment'] . ': ';
-        $message .= $order->paid_at
-            ? $translation['statusPaid']
-            : $translation['statusNotPaid'];
+
+        if ($order->payment_type !== Order::MONOBANK_TYPE)
+            $message .= $order->paid_at
+                ? $translation['statusPaid']
+                : $translation['statusNotPaid'];
 
         $message .= PHP_EOL . PHP_EOL . $translation['complicity'] . ': ' . PHP_EOL;
         foreach ($order->pizzas as $orderPizza) {
@@ -286,9 +296,8 @@ trait OrderAction
             $message .= PHP_EOL;
         }
 
-        Log::info($order);
         $buttons = [];
-        if (!$order->paid_at) {
+        if (!$order->paid_at && $order->invoice_link) {
             $buttons[] = Button::make($translation['payNow'])->url($order->invoice_link);
         }
 
@@ -346,5 +355,69 @@ trait OrderAction
             ->send();
 
         return;
+    }
+
+    public function activeOrders()
+    {
+        $limit = 6;
+        $page = $this->data->get('page') ?? 1;
+        $messageId = $this->data->get('messageId');
+        $userId = $this->chat->user_id;
+
+        $translation = [
+            'update'   => __('main.actions.update'),
+            'backText' => __('main.actions.to_main'),
+            'next'     => __('main.actions.next_page'),
+            'prev'     => __('main.actions.prev_pgae'),
+            'caption'  => __('main.manage_orders_text'),
+        ];
+
+        $orders = Order::where('user_id', $userId)
+            ->orderByRaw("FIELD(status, '" . Order::STATUS_WAITING . "', '" . Order::STATUS_IN_ROAD . "', '" . Order::STATUS_COMPLETED . "')")
+            ->get()
+            ->groupBy('status');
+
+        $waitingOrders = $orders->get(Order::STATUS_WAITING, collect());
+        $inRoadOrders = $orders->get(Order::STATUS_IN_ROAD, collect());
+        $completedOrders = $orders->get(Order::STATUS_COMPLETED, collect());
+
+        $allOrders = $waitingOrders->concat($inRoadOrders)->concat($completedOrders);
+
+        $paginatorService = new PaginatorService($page, $limit);
+        $paginator = $paginatorService->paginateCollection($allOrders);
+
+        $paginationButtons = [];
+        if ($page != 1)
+            $paginationButtons[] = Button::make($translation['prev'])->action('activeOrders')->param('messageId', $messageId)->param('page', $page - 1);
+
+        if ($paginator->hasMorePages()) {
+            $paginationButtons[] = Button::make($translation['next'])->action('activeOrders')->param('messageId', $messageId)->param('page', $page + 1);
+        }
+
+        $buttons = [];
+
+        foreach ($paginator->items() as $order) {
+            $label = '#' . $order->order_id . ' ' . $this->orderStatusIcon[$order->status];
+            $buttons[] = Button::make($label)->action("orderView")->param('messageId', $messageId)->param('orderId', $order->id);
+        }
+
+        $caption = $translation['caption'] . PHP_EOL . PHP_EOL;
+        $caption .= __('main.statuses.' . Order::STATUS_WAITING) . PHP_EOL;
+        $caption .= __('main.statuses.' . Order::STATUS_IN_ROAD) . PHP_EOL;
+        $caption .= __('main.statuses.' . Order::STATUS_COMPLETED) . PHP_EOL;
+
+        $keyboard = Keyboard::make()
+            ->buttons($buttons)->chunk(2)
+            ->row($paginationButtons)
+            ->buttons([
+                Button::make($translation['update'])->action("activeOrders")->param('messageId', $messageId),
+                Button::make($translation['backText'])->action("toPreview")->param('messageId', $messageId),
+            ]);
+
+        $this->chat
+            ->replaceKeyboard($messageId, $keyboard)
+            ->editCaption($messageId)
+            ->message($caption)
+            ->send();
     }
 }

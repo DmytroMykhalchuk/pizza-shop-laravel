@@ -2,6 +2,7 @@
 
 namespace App\Http\Telegram\Actions;
 
+use App\Models\Order;
 use DefStudio\Telegraph\Handlers\WebhookHandler;
 use DefStudio\Telegraph\Keyboard\Button;
 use DefStudio\Telegraph\Keyboard\Keyboard;
@@ -31,18 +32,24 @@ trait ScreenAction
         $this->replaceIntroImage($messageId, $caption);
     }
 
-    public function getPreviewKeyboard($messageId)
+    private function getPreviewKeyboard($messageId)
     {
+        $userId = $this->chat->user_id;
+        $ordersCount = Order::where('user_id', $userId)->count();
+        
         $translation = [
-            'orderPizza' => __('main.actions.order_pizza', [], $this->chat->locale),
+            'orderPizza'    => __('main.actions.order_pizza', [], $this->chat->locale),
             'notifications' => __('main.actions.notifications', [], $this->chat->locale),
-            'activeOrders' => __('main.actions.active_orders', [], $this->chat->locale),
+            'activeOrders'  => __('main.actions.active_orders', [], $this->chat->locale) . $ordersCount,
+            'update'        => __('main.actions.update'),
         ];
 
         $keyboard = Keyboard::make()->buttons([
             Button::make($translation['orderPizza'])->action("orderPizza")->param('messageId', $messageId),
             Button::make($translation['notifications'])->action("notifications")->param('messageId', $messageId),
             Button::make($translation['activeOrders'])->action("activeOrders")->param('messageId', $messageId),
+            Button::make($translation['update'])->action("toPreview")->param('messageId', $messageId),
+            Button::make('Seed +20 orders 💻')->action("seed")->param('messageId', $messageId),
         ]);
 
         return $keyboard;

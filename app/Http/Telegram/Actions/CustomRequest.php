@@ -41,11 +41,9 @@ class CustomRequest
             'reply_markup' => $replyMarkup ? json_encode($replyMarkup) : null,
         ]);
     
-        // Перевірка на успішність запиту
         if ($response->successful()) {
             return $response->json();
         } else {
-            // Обробка помилки
             throw new \Exception("Failed to edit message: " . $response->body());
         }
     }

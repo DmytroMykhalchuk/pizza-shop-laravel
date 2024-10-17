@@ -7,6 +7,7 @@ use App\Http\Services\MonobankService\MonobankService;
 use App\Http\Telegram\Actions\BaseHandlers;
 use App\Http\Telegram\Actions\OrderAction;
 use App\Http\Telegram\Actions\ScreenAction;
+use App\Http\Telegram\Actions\SeedersAction;
 use DefStudio\Telegraph\Facades\Telegraph;
 use DefStudio\Telegraph\Handlers\WebhookHandler;
 use DefStudio\Telegraph\Keyboard\Button;
@@ -19,6 +20,7 @@ class Handler extends WebhookHandler
     use BaseHandlers;
     use OrderAction;
     use ScreenAction;
+    use SeedersAction;
 
     private string $defaultLocale = 'en';
     private TelegramUserAction $userAction;
@@ -33,9 +35,13 @@ class Handler extends WebhookHandler
 
     public function k()
     {
-        $messageId = 1110;
-        $image = 1;
-        $image = "https://random-d.uk/api/v2/" . random_int(1, 280) . ".jpg";
+        Log::info($this->chat);
+        // $this->reply(
+        //     $this->chat
+        // );
+        // $messageId = 1110;
+        // $image = 1;
+        // $image = "https://random-d.uk/api/v2/" . random_int(1, 280) . ".jpg";
 
         // Редагування медіа без зміни тексту
         // $this->chat
@@ -63,21 +69,21 @@ class Handler extends WebhookHandler
         //     ->photo($image)
         //     ->editCaption($messageId)->message('erg')
         //     ->send();
-        $keyboard = Keyboard::make()->buttons([
-            Button::make('f4e')->action('rr'),
-            Button::make('fffe')->action('rr'),
-        ]);
+        // $keyboard = Keyboard::make()->buttons([
+        //     Button::make('f4e')->action('rr'),
+        //     Button::make('fffe')->action('rr'),
+        // ]);
 
-        $response = $this->chat
-            ->replaceKeyboard($messageId, $keyboard)
-            ->editMedia($messageId)
-            ->photo($image)
-            ->withData('media', json_encode([
-                'type' => 'photo',
-                'media' => $image,
-                'caption' => now()
-            ]))
-            ->send();
+        // $response = $this->chat
+        //     ->replaceKeyboard($messageId, $keyboard)
+        //     ->editMedia($messageId)
+        //     ->photo($image)
+        //     ->withData('media', json_encode([
+        //         'type' => 'photo',
+        //         'media' => $image,
+        //         'caption' => now()
+        //     ]))
+        //     ->send();
 
         // $response = $this->chat
         // ->editMedia($messageId)
@@ -85,7 +91,7 @@ class Handler extends WebhookHandler
         // ->editCaption($messageId)->message(now())
         // ->send();
 
-        Log::info($response);
+        // Log::info($response);
     }
 }
 

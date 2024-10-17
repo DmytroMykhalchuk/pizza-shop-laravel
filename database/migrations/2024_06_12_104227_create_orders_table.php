@@ -22,6 +22,7 @@ return new class extends Migration
             $table->string('invoice_link')->nullable();
             $table->string('invoice_id')->nullable();
             $table->string('message_id');
+            $table->string('user_id');
             $table->decimal('total', 10);
             $table->datetime('paid_at')->nullable();
             $table->timestamps();

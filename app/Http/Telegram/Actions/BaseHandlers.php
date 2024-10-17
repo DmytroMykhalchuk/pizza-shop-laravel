@@ -22,8 +22,12 @@ trait BaseHandlers
         ];
 
         $user = $this->message->from();
-        $this->userAction->storeOrUpdate($this->chat->id, $user);
         $this->chat->locale = $user->languageCode() ?? $this->defaultLocale;
+        $this->chat->user_id = $user->id();
+        $this->chat->username = $user->id();
+        $this->chat->first_name = $user->firstName();
+        $this->chat->last_name = $user->lastName();
+        $this->chat->username = $user->username();
         $this->chat->save();
 
         $response = $this->chat

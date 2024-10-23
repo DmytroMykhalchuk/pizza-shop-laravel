@@ -49,6 +49,7 @@ class Order extends Model
         'invoice_link',
         'invoice_id',
         'status',
+        'address',
         'total',
         'user_id',
     ];

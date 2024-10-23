@@ -3,6 +3,7 @@
 namespace App\Actions\Payments;
 
 use App\Http\Services\MonobankService\MonobankService;
+use App\Models\Notification;
 use App\Models\Order;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -66,5 +67,12 @@ class PaymentsAction
     {
         $order->paid_at = Carbon::parse($response['modifiedDate']);
         $order->save();
+
+        $notification = new Notification();
+        $notification->user_id = $order->user_id;
+        $notification->message = __('main.notifications.order_paid',['order'=>$order->orderId]);
+        $notification->type = Notification::TYPE_PAID;
+
+        $notification->save();
     }
 }

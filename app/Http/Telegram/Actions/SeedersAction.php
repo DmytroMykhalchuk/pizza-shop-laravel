@@ -2,6 +2,7 @@
 
 namespace App\Http\Telegram\Actions;
 
+use App\Models\Notification;
 use App\Models\Order;
 use App\Models\OrderPizza;
 use App\Models\Pizza;
@@ -60,5 +61,19 @@ trait SeedersAction
             'pizza_size_id' => $size->id,
             'count' => 1,
         ]);
+
+        $notification = new Notification();
+        $notification->user_id = $order->user_id;
+        if ($withPayment) {
+            $notification->message = __('main.notifications.wait_payment', ['order' => $order->id]);
+            $notification->type = Notification::TYPE_WAIT_PAYMENT;
+        } else {
+            $types = [Notification::TYPE_DELIVERED, Notification::TYPE_PAID];
+            $targetType = $types[random_int(0, count($types) - 1)];
+
+            $notification->message = __('main.notifications.' . $targetType, ['order' => $order->id]);
+            $notification->type = $targetType;
+        }
+        $notification->save();
     }
 }

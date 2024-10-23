@@ -3,11 +3,13 @@
 namespace App\Http\Telegram\Actions;
 
 use App\Http\Services\Paginator\PaginatorService;
+use App\Models\Notification;
 use App\Models\Order;
 use App\Models\OrderPizza;
 use App\Models\Pizza;
 use App\Models\PizzaSize;
 use App\Models\Preorder;
+use App\Models\UserChat;
 use DefStudio\Telegraph\Keyboard\Button;
 use DefStudio\Telegraph\Keyboard\Keyboard;
 use Illuminate\Support\Facades\Log;
@@ -71,7 +73,7 @@ trait OrderAction
 
         $sizeButtons = $pizza->sizes->map(function ($size) use ($messageId, $pizza) {
             return Button::make($size->name . ' ' . $size->diametr_cm . ' ' . $pizza->base_price * $size->price_multiplier . '$')
-                ->action('choosePizzaSize')
+                ->action('inputAddress')
                 ->param('messageId', $messageId)
                 ->param('pizzaId', $pizza->id)
                 ->param('sizeId', $size->id);
@@ -89,7 +91,43 @@ trait OrderAction
         $this->customEditPhoto($messageId, $pizza->name, $pizzaPreview);
     }
 
-    public function choosePizzaSize()
+    public function inputAddress()
+    {
+        $messageId = $this->data->get('messageId');
+        $pizzaId = $this->data->get('pizzaId');
+        $pizzaSizeId = $this->data->get('sizeId');
+
+        $preorder = new Preorder();
+        $preorder->pizza = [
+            'sizeId' => $pizzaSizeId,
+            'pizzaId' => $pizzaId,
+        ];
+
+        $preorder->save();
+
+        $this->messageInputAddress($messageId, $preorder->id);
+    }
+
+    private function messageInputAddress(string $messageId, string $preorderId)
+    {
+        $translation = [
+            'inputAddress' => __('main.input_address'),
+        ];
+
+        $this->chat->last_message_id = $messageId;
+        $this->chat->action = UserChat::ACTION_INPUT_ADDRESS;
+        $this->chat->action_data = json_encode([
+            'preorderId' => $preorderId,
+        ]);
+        $this->chat->save();
+
+        $this->chat
+            ->editCaption($messageId)
+            ->message($translation['inputAddress'])
+            ->send();
+    }
+
+    public function choosePayment()
     {
         $translation = [
             'backText' => __('main.actions.return_back', [], $this->chat->locale),
@@ -98,11 +136,13 @@ trait OrderAction
         ];
 
         $messageId = $this->data->get('messageId');
-        $pizzaId = $this->data->get('pizzaId');
-        $pizzaSizeId = $this->data->get('sizeId');
+        $preorderId = $this->data->get('preorderId');
+
+        $preorder = Preorder::find($preorderId);
+        $pizzaId = $preorder->pizza['pizzaId'];
 
         $pizza = Pizza::find($pizzaId);
-        $size = PizzaSize::find($pizzaSizeId);
+        $size = PizzaSize::find($preorder->pizza['sizeId']);
 
         $message = $pizza->name . PHP_EOL . PHP_EOL;
         $message .= $translation['total'] . ': ' . $pizza->base_price * $size->price_multiplier . '$';
@@ -111,12 +151,7 @@ trait OrderAction
 
         $message .= '';
 
-        $preorder = new Preorder();
-        $preorder->pizza = [
-            'sizeId' => $pizzaSizeId,
-            'pizzaId' => $pizzaId,
-        ];
-        $preorder->save();
+
         $payments = [];
 
         $payments[] = Button::make('Monobank')
@@ -141,13 +176,14 @@ trait OrderAction
     public function orderPay()
     {
         $translation = [
-            'backText'       => __('main.actions.return_back', [], $this->chat->locale),
+            'toMain'       => __('main.actions.to_main', [], $this->chat->locale),
             'cancel'         => __('main.actions.cancel'),
             'payNow'         => __('main.actions.pay_now'),
             'changePayments' => __('main.actions.change_type_of_payments'),
             'total'          => __('main.total'),
             'payment'        => __('main.payment_type'),
             'update'         => __('main.actions.update'),
+            'address'        => __('main.address'),
         ];
 
         $messageId = $this->data->get('messageId');
@@ -155,6 +191,10 @@ trait OrderAction
         $paymentMethod = $this->data->get('paymentMethod');
 
         $preorder = Preorder::find($preorderId);
+        if (!isset($preorder->pizza['address'])) {
+            $this->messageInputAddress($messageId, $preorderId);
+            return;
+        }
         $pizzaData = $preorder->pizza;
 
         $pizzaId = $pizzaData['pizzaId'];
@@ -167,7 +207,8 @@ trait OrderAction
         $message = $pizza->name . PHP_EOL . PHP_EOL;
         $message .= $translation['total'] . ': ' . $total . '$';
         $message .= "\n\n";
-        $message .= $translation['payment'] . " : monobank\n";
+        $message .= $translation['payment'] . ": monobank\n";
+        $message .= $translation['address'] . ": " . $preorder->pizza['address'];
 
         $message .= '';
 
@@ -181,9 +222,16 @@ trait OrderAction
         $order->invoice_id = $monobankResponse->invoiceId;
         $order->telegraph_chat_id = $this->chat->id;
         $order->message_id = $messageId;
+        $order->address = $preorder->pizza['address'];
         $order->total = $total;
         $order->user_id = $this->chat->user_id;
         $order->save();
+
+        $notification = new Notification();
+        $notification->user_id = $order->user_id;
+        $notification->message = __('main.notifications.wait_payment', ['order' => $order->orderId]);
+        $notification->type = Notification::TYPE_WAIT_PAYMENT;
+        $notification->save();
 
         OrderPizza::create([
             'order_id' => $order->id,
@@ -195,9 +243,8 @@ trait OrderAction
         $buttons = [
             Button::make($translation['payNow'])->url($monobankResponse->pageUrl),
             Button::make($translation['cancel'])->param('orderId', $order->id)->param('messageId', $messageId)->action('cancelOrder'),
-            // Button::make($translation['changePayments'])->param('preorderId', $preorderId)->param('messageId', $messageId)->action('changePaymentType'),
             Button::make($translation['update'])->action('orderView')->param('messageId', $messageId)->param('orderId', $order->id),
-            Button::make($translation['backText'])->param('messageId', $messageId)->action('toPreview'),
+            Button::make($translation['toMain'])->param('messageId', $messageId)->action('toPreview'),
         ];
 
         $keyboard = Keyboard::make()->buttons($buttons);
@@ -275,14 +322,17 @@ trait OrderAction
             'statusNotPaid'  => __('main.paid.waiting'),
             'payment'        => __('main.paid.item'),
             'orderPrice'     => __('main.order_price'),
+            'address'        => __('main.address'),
         ];
 
         $message = $translation['orderTitle'] . PHP_EOL . PHP_EOL;
         $message .= $translation['orderPrice'] . $order->total . '$' . PHP_EOL . PHP_EOL;
         $message .= $translation['status'] . ': ' . $translation['orderStatus'] . PHP_EOL;
+        $message .= $translation['address'] . ': ' . $order->address . PHP_EOL;
+
         $message .= $translation['payment'] . ': ';
 
-        if ($order->payment_type !== Order::MONOBANK_TYPE)
+        if ($order->payment_type == Order::MONOBANK_TYPE)
             $message .= $order->paid_at
                 ? $translation['statusPaid']
                 : $translation['statusNotPaid'];
@@ -407,17 +457,68 @@ trait OrderAction
         $caption .= __('main.statuses.' . Order::STATUS_COMPLETED) . PHP_EOL;
 
         $keyboard = Keyboard::make()
-            ->buttons($buttons)->chunk(2)
-            ->row($paginationButtons)
-            ->buttons([
-                Button::make($translation['update'])->action("activeOrders")->param('messageId', $messageId),
-                Button::make($translation['backText'])->action("toPreview")->param('messageId', $messageId),
-            ]);
+            ->buttons($buttons)->chunk(2);
+
+        count($paginationButtons) && $keyboard->row($paginationButtons);
+        
+        $keyboard->buttons([
+            Button::make($translation['update'])->action("activeOrders")->param('messageId', $messageId),
+            Button::make($translation['backText'])->action("toPreview")->param('messageId', $messageId),
+        ]);
 
         $this->chat
             ->replaceKeyboard($messageId, $keyboard)
             ->editCaption($messageId)
             ->message($caption)
             ->send();
+    }
+
+    private function confirmOrderAddress(string $address, array $actionData)
+    {
+        $translation = [
+            'yes'     => __('main.actions.yes'),
+            'no'      => __('main.actions.no'),
+            'caption' => __('main.is_that_your_address', ['addrees' => $address]),
+        ];
+
+        $preorderId = $actionData['preorderId'];
+        $this->chat->action = null;
+        $this->chat->action_data = null;
+
+        if (!$preorderId) {
+            return;
+        }
+        $preorder = Preorder::findOrFail($preorderId);
+        $preorderData = $preorder->pizza;
+        $preorderData['address'] = $address;
+        $preorder->pizza = $preorderData;
+        $preorder->save();
+
+        $keyboard = Keyboard::make()->buttons([
+            Button::make($translation['no'])->action('reinputOrderAddress'),
+            Button::make($translation['yes'])->action('choosePayment'),
+        ])->chunk(2);
+
+        $message =  $this->chat
+            ->photo($this->introImage)
+            ->message($translation['caption'])
+            ->keyboard($keyboard)
+            ->send();
+
+
+        $messageId = $message->telegraphMessageId();
+        $keyboard = Keyboard::make()->buttons([
+            Button::make($translation['no'])->action('reinputOrderAddress')->param('messageId', $messageId)->param('preorderId', $preorderId),
+            Button::make($translation['yes'])->action('choosePayment')->param('messageId', $messageId)->param('preorderId', $preorderId),
+        ])->chunk(2);
+        $this->chat->replaceKeyboard($messageId, $keyboard)->send();
+    }
+
+    public function reinputOrderAddress()
+    {
+        $messageId = $this->data->get('messageId');
+        $preorderId = $this->data->get('preorderId');
+
+        $this->messageInputAddress($messageId, $preorderId);
     }
 }

@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class UserChat extends Model
 {
+    public const ACTION_INPUT_ADDRESS = 'input_address';
+    
     use HasFactory;
 
     protected $table = 'user_chats';

@@ -2,10 +2,12 @@
 
 namespace App\Http\Telegram\Actions;
 
+use App\Models\UserChat;
 use DefStudio\Telegraph\DTO\InlineQuery;
 use DefStudio\Telegraph\DTO\InlineQueryResultArticle;
 use DefStudio\Telegraph\DTO\InlineQueryResultPhoto;
 use DefStudio\Telegraph\Facades\Telegraph;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Stringable;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Throwable;
@@ -87,11 +89,22 @@ trait BaseHandlers
 
     protected function handleChatMessage(Stringable $text): void
     {
-        $id = $this->message->id();
+        $action = $this->chat->action;
+        $actionData = json_decode($this->chat->action_data ?? '[]', true);
 
+        $id = $this->message->id();
+        $this->chat->deleteMessage($id)->send();
+
+        $this->chat->last_message_id && 
+            $this->deleteMessage($this->chat->last_message_id);
+
+        if ($action === UserChat::ACTION_INPUT_ADDRESS) {
+            Log::info($action);
+            $this->confirmOrderAddress($text, $actionData);
+        }
         // $this->chat->deleteMessage($id);
         // dd($id);
-        $this->chat->html("Received: $text " . $id)->send();
-        $this->chat->message('hi')->withData('caption', 'test')->send();
+        // $this->chat->html("Received: $text " . $id)->send();
+        // $this->chat->message('hi')->withData('caption', 'test')->send();
     }
 }

@@ -19,6 +19,7 @@ return new class extends Migration
             $table->string('delivery_type');
             $table->string('payment_type');
             $table->string('status');
+            $table->string('address');
             $table->string('invoice_link')->nullable();
             $table->string('invoice_id')->nullable();
             $table->string('message_id');

@@ -5,6 +5,7 @@ namespace App\Http\Telegram;
 use App\Actions\Telegram\TelegramUserAction;
 use App\Http\Services\MonobankService\MonobankService;
 use App\Http\Telegram\Actions\BaseHandlers;
+use App\Http\Telegram\Actions\NotificationAction;
 use App\Http\Telegram\Actions\OrderAction;
 use App\Http\Telegram\Actions\ScreenAction;
 use App\Http\Telegram\Actions\SeedersAction;
@@ -21,6 +22,7 @@ class Handler extends WebhookHandler
     use OrderAction;
     use ScreenAction;
     use SeedersAction;
+    use NotificationAction;
 
     private string $defaultLocale = 'en';
     private TelegramUserAction $userAction;
@@ -92,6 +94,14 @@ class Handler extends WebhookHandler
         // ->send();
 
         // Log::info($response);
+    }
+    public function btn()
+    {
+        $this->chat->message('1')
+            ->keyboard(Keyboard::make()->buttons([
+                Button::make(env('FRONTEND_URL'))->webApp(env('FRONTEND_URL')),
+            // Button::make('Web App')->webApp('https://web-app.test.it'),
+            ]))->send();
     }
 }
 

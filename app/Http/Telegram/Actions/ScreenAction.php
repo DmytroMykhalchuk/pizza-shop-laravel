@@ -2,10 +2,12 @@
 
 namespace App\Http\Telegram\Actions;
 
+use App\Models\Notification;
 use App\Models\Order;
 use DefStudio\Telegraph\Handlers\WebhookHandler;
 use DefStudio\Telegraph\Keyboard\Button;
 use DefStudio\Telegraph\Keyboard\Keyboard;
+use DefStudio\Telegraph\Telegraph;
 use Illuminate\Support\Facades\Log;
 
 trait ScreenAction
@@ -36,7 +38,8 @@ trait ScreenAction
     {
         $userId = $this->chat->user_id;
         $ordersCount = Order::where('user_id', $userId)->count();
-        
+        $notificationCount = Notification::where('user_id', $userId)->where('is_checked', false)->count();
+
         $translation = [
             'orderPizza'    => __('main.actions.order_pizza', [], $this->chat->locale),
             'notifications' => __('main.actions.notifications', [], $this->chat->locale),
@@ -44,9 +47,14 @@ trait ScreenAction
             'update'        => __('main.actions.update'),
         ];
 
+        $caption = $translation['notifications'];
+        if ($notificationCount) {
+            $caption .= ' +' . $notificationCount;
+        }
+
         $keyboard = Keyboard::make()->buttons([
             Button::make($translation['orderPizza'])->action("orderPizza")->param('messageId', $messageId),
-            Button::make($translation['notifications'])->action("notifications")->param('messageId', $messageId),
+            Button::make($caption)->action("indexNotification")->param('messageId', $messageId),
             Button::make($translation['activeOrders'])->action("activeOrders")->param('messageId', $messageId),
             Button::make($translation['update'])->action("toPreview")->param('messageId', $messageId),
             Button::make('Seed +20 orders 💻')->action("seed")->param('messageId', $messageId),
@@ -55,7 +63,7 @@ trait ScreenAction
         return $keyboard;
     }
 
-    public function customEditPhoto(string $messageId, string $caption, string $image)
+    private function customEditPhoto(string $messageId, string $caption, string $image)
     {
         $this->modifiedChat->editMedia($messageId)
             ->photo($image)
@@ -64,5 +72,15 @@ trait ScreenAction
                 'media' => $image,
                 'caption' => $caption,
             ]))->send();
+    }
+
+    private function deleteMessage(string $messageId)
+    {
+        $response = $this->chat->deleteMessage($messageId)->send();
+        if (!$response->telegraphOk()) {
+            $caption = __('main.reset_message_text');
+            $this->modifiedChat = $this->chat->editCaption($messageId)->message($caption);
+            $this->customEditPhoto($messageId, $caption, $this->introImage);
+        }
     }
 }

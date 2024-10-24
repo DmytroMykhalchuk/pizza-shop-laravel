@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Telegram\Actions;
+namespace App\Http\Telegram\Traits;
 
 use App\Models\UserChat;
 use DefStudio\Telegraph\DTO\InlineQuery;
@@ -30,6 +30,7 @@ trait BaseHandlers
         $this->chat->first_name = $user->firstName();
         $this->chat->last_name = $user->lastName();
         $this->chat->username = $user->username();
+
         $this->chat->save();
 
         $response = $this->chat
@@ -95,11 +96,10 @@ trait BaseHandlers
         $id = $this->message->id();
         $this->chat->deleteMessage($id)->send();
 
-        $this->chat->last_message_id && 
+        $this->chat->last_message_id &&
             $this->deleteMessage($this->chat->last_message_id);
 
         if ($action === UserChat::ACTION_INPUT_ADDRESS) {
-            Log::info($action);
             $this->confirmOrderAddress($text, $actionData);
         }
         // $this->chat->deleteMessage($id);

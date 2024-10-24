@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Telegram\Actions;
+namespace App\Http\Telegram\Traits;
 
 use App\Models\Notification;
 use App\Models\Order;

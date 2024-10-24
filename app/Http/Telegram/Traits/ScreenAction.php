@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Telegram\Actions;
+namespace App\Http\Telegram\Traits;
 
 use App\Models\Notification;
 use App\Models\Order;
@@ -36,6 +36,11 @@ trait ScreenAction
 
     private function getPreviewKeyboard($messageId)
     {
+        $this->chat->last_message_id = null;
+        $this->chat->action = null;
+        $this->chat->action_data = null;
+        $this->chat->save();
+        
         $userId = $this->chat->user_id;
         $ordersCount = Order::where('user_id', $userId)->count();
         $notificationCount = Notification::where('user_id', $userId)->where('is_checked', false)->count();
@@ -45,6 +50,7 @@ trait ScreenAction
             'notifications' => __('main.actions.notifications', [], $this->chat->locale),
             'activeOrders'  => __('main.actions.active_orders', [], $this->chat->locale) . $ordersCount,
             'update'        => __('main.actions.update'),
+            'cart'          => __('main.actions.cart'),    
         ];
 
         $caption = $translation['notifications'];
@@ -53,10 +59,11 @@ trait ScreenAction
         }
 
         $keyboard = Keyboard::make()->buttons([
-            Button::make($translation['orderPizza'])->action("orderPizza")->param('messageId', $messageId),
+            Button::make($translation['orderPizza'])->action("indexPizza")->param('messageId', $messageId),
             Button::make($caption)->action("indexNotification")->param('messageId', $messageId),
-            Button::make($translation['activeOrders'])->action("activeOrders")->param('messageId', $messageId),
+            Button::make($translation['activeOrders'])->action("indexActiveOrders")->param('messageId', $messageId),
             Button::make($translation['update'])->action("toPreview")->param('messageId', $messageId),
+            Button::make($translation['cart'])->action("showCartConformation")->param('messageId', $messageId),
             Button::make('Seed +20 orders 💻')->action("seed")->param('messageId', $messageId),
         ]);
 

@@ -13,7 +13,10 @@ return new class extends Migration
     {
         Schema::create('preorders', function (Blueprint $table) {
             $table->id();
-            $table->json('pizza')->nullable();
+            $table->json('pizzas')->nullable();
+            $table->string('user_id')->unique();
+            $table->string('address')->nullable();
+            $table->json('products')->default([]);
             $table->timestamps();
         });
     }

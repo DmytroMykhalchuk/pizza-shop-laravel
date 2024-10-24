@@ -4,11 +4,14 @@ namespace App\Http\Telegram;
 
 use App\Actions\Telegram\TelegramUserAction;
 use App\Http\Services\MonobankService\MonobankService;
-use App\Http\Telegram\Actions\BaseHandlers;
-use App\Http\Telegram\Actions\NotificationAction;
-use App\Http\Telegram\Actions\OrderAction;
-use App\Http\Telegram\Actions\ScreenAction;
-use App\Http\Telegram\Actions\SeedersAction;
+use App\Http\Telegram\Actions\Cart\CartAction;
+use App\Http\Telegram\Actions\Order\OrderAction;
+use App\Http\Telegram\Traits\BaseHandlers;
+use App\Http\Telegram\Traits\CartTrait;
+use App\Http\Telegram\Traits\NotificationAction;
+use App\Http\Telegram\Traits\OrderTrait;
+use App\Http\Telegram\Traits\ScreenAction;
+use App\Http\Telegram\Traits\SeedersAction;
 use DefStudio\Telegraph\Facades\Telegraph;
 use DefStudio\Telegraph\Handlers\WebhookHandler;
 use DefStudio\Telegraph\Keyboard\Button;
@@ -19,20 +22,23 @@ use Illuminate\Support\Facades\Log;
 class Handler extends WebhookHandler
 {
     use BaseHandlers;
-    use OrderAction;
+    use OrderTrait;
     use ScreenAction;
     use SeedersAction;
     use NotificationAction;
+    use CartTrait;
 
     private string $defaultLocale = 'en';
     private TelegramUserAction $userAction;
-    private MonobankService $monobankService;
     private TelegraphTelegraph $modifiedChat;
+    private OrderAction $orderAction;
+    private CartAction $cartAction;
 
-    public function __construct()
+    public function __construct(TelegraphTelegraph $chat)
     {
         $this->userAction = new TelegramUserAction();
-        $this->monobankService = new MonobankService();
+        $this->orderAction = new OrderAction();
+        $this->cartAction = new CartAction();
     }
 
     public function k()
@@ -100,7 +106,7 @@ class Handler extends WebhookHandler
         $this->chat->message('1')
             ->keyboard(Keyboard::make()->buttons([
                 Button::make(env('FRONTEND_URL'))->webApp(env('FRONTEND_URL')),
-            // Button::make('Web App')->webApp('https://web-app.test.it'),
+                // Button::make('Web App')->webApp('https://web-app.test.it'),
             ]))->send();
     }
 }

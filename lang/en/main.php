@@ -5,6 +5,7 @@ return [
     'intro_description' => 'Welcome! Do you wanna some pizza?',
     'actions' => [
         'order_pizza' => 'Замовити піццу 🦧',
+        'more_pizza' => 'Бльше піцци 👻',
         'notifications' => 'Сповіщення 🔔',
         'active_orders' => 'Замовлення ⚡',
         'cancel' => 'Скасувати 📴',
@@ -18,6 +19,8 @@ return [
         'update' => 'Оновити 🙃',
         'next_page' => 'Вперед ⏭',
         'prev_pgae' => 'Назад ⏮',
+        'clear_cart' => 'Очистити корзину 🛒',
+        'cart' => 'Кошик 🛒',
     ],
     'total' => 'Всього',
     'payment_type' => 'Тип оплати',
@@ -69,7 +72,9 @@ return [
     ],
 
     'input_address' => 'Введіть ваш адрес 🏡',
-    'address'=>'Адрес',
+    'address' => 'Адрес',
     'reset_message_text' => '💛',
-    'is_that_your_address'=>'Це ваш адрес ":addrees"?'
+    'is_that_your_address' => 'Це ваш адрес ":addrees"?',
+    'select_count' => 'Оберіть кількість',
+    'empty_cart' => 'Кошик порожній 😭',
 ];

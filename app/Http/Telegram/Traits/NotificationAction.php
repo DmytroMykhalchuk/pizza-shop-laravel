@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Telegram\Actions;
+namespace App\Http\Telegram\Traits;
 
 use App\Http\Services\Paginator\PaginatorService;
 use App\Models\Notification;

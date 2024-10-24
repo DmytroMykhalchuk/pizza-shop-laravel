@@ -12,13 +12,17 @@ class Preorder extends Model
     protected $table = 'preorders';
 
     protected $fillable = [
-        'pizza',
+        'user_id',
+        'pizzas',
+        'products',
+        'address',
     ];
 
     public function casts(): array
     {
         return [
-            'pizza' => 'array',
+            'pizzas'   => 'array',
+            'products' => 'array',
         ];
     }
 }

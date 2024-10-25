@@ -38,7 +38,7 @@ class OrderAction extends AbstractAction
     public function onConfirmOrder(string $messageId, string $preorderId, string $paymentMethod)
     {
         $translation = [
-            'toMain'       => __('main.actions.to_main', [], $this->chat->locale),
+            'toMain'         => __('main.actions.to_main', [], $this->chat->locale),
             'cancel'         => __('main.actions.cancel'),
             'payNow'         => __('main.actions.pay_now'),
             'changePayments' => __('main.actions.change_type_of_payments'),
@@ -48,27 +48,16 @@ class OrderAction extends AbstractAction
             'address'        => __('main.address'),
         ];
 
+
         $preorder = Preorder::find($preorderId);
-        if (!isset($preorder->pizza['address'])) {
-            // $this->messageInputAddress($messageId, $preorderId);
-            //todo 
-            return;
-        }
-        $pizzaData = $preorder->pizza;
+        $orderData = $this->calculateOrderData($preorder);
 
-        $pizzaId = $pizzaData['pizzaId'];
-        $pizzaSizeId = $pizzaData['sizeId'];
+        $total = $orderData['total'];
 
-        $pizza = Pizza::find($pizzaId);
-        $size = PizzaSize::find($pizzaSizeId);
-
-        $total = $pizza->base_price * $size->price_multiplier;
-        $message = $pizza->name . PHP_EOL . PHP_EOL;
-        $message .= $translation['total'] . ': ' . $total . '$';
+        $message = $orderData['message'];
         $message .= "\n\n";
         $message .= $translation['payment'] . ": monobank\n";
-        $message .= $translation['address'] . ": " . $preorder->pizza['address'];
-
+        $message .= $translation['address'] . ": " . $preorder->address;
         $message .= '';
 
         $monobankResponse = $this->monobankService->createInvoice($total);
@@ -81,7 +70,7 @@ class OrderAction extends AbstractAction
         $order->invoice_id = $monobankResponse->invoiceId;
         $order->telegraph_chat_id = $this->chat->id;
         $order->message_id = $messageId;
-        $order->address = $preorder->pizza['address'];
+        $order->address = $preorder->address;
         $order->total = $total;
         $order->user_id = $this->chat->user_id;
         $order->save();
@@ -92,12 +81,15 @@ class OrderAction extends AbstractAction
         $notification->type = Notification::TYPE_WAIT_PAYMENT;
         $notification->save();
 
-        OrderPizza::create([
-            'order_id' => $order->id,
-            'pizza_id' => $pizza->id,
-            'pizza_size_id' => $size->id,
-            'count' => 1,
-        ]);
+        foreach ($preorder->pizzas as $pizzaRow) {
+            OrderPizza::create([
+                'order_id' => $order->id,
+                'pizza_id' => $pizzaRow['pizzaId'],
+                'pizza_size_id' => $pizzaRow['sizeId'],
+                'count' => $pizzaRow['count'] ?? 1,
+            ]);
+        }
+        $preorder->delete();
 
         $buttons = [
             Button::make($translation['payNow'])->url($monobankResponse->pageUrl),
@@ -219,17 +211,17 @@ class OrderAction extends AbstractAction
             'back' => __('main.actions.return_back'),
         ];
 
-        $keyboard = Keyboard::make()->buttons([
+        $buttons = [
             Button::make($translation['toMain'])->action('toPreview')->param('messageId', $messageId)->param('orderId', $orderId),
-        ]);
-
+        ];
 
         $order = Order::findOrFail($orderId);
 
         if ($order->status === Order::STATUS_COMPLETED) {
             $message = $translation['error'];
-            $keyboard[] = Button::make($translation['back'])->action('onViewOrder')->param('messageId', $messageId);
+            $buttons[] = Button::make($translation['back'])->action('onViewOrder')->param('messageId', $messageId);
         } else {
+            $order->delete();
             $message = $translation['success'];
         }
 
@@ -239,6 +231,8 @@ class OrderAction extends AbstractAction
             $this->monobankService->cancelInvoice($order->invoice_id);
             $message .= "\n" . $translation['recharged'];
         }
+
+        $keyboard=Keyboard::make()->buttons($buttons);
 
         $this->chat
             ->replaceKeyboard($messageId, $keyboard)
@@ -289,7 +283,7 @@ class OrderAction extends AbstractAction
         $message .= PHP_EOL . PHP_EOL . $translation['complicity'] . ': ' . PHP_EOL;
         foreach ($order->pizzas as $orderPizza) {
             $message .= '- ' . $orderPizza->pizza->name . ' ' . $orderPizza->size->name . ' ';
-            $message .= round($orderPizza->size->price_multiplier * $orderPizza->pizza->base_price, 2) . '$ ';
+            $message .= round($orderPizza->size->price_multiplier * $orderPizza->pizza->base_price, 2) . '$ ' . $orderPizza->count .$translation['itemCount'];
             $message .= PHP_EOL;
         }
 
@@ -299,7 +293,7 @@ class OrderAction extends AbstractAction
         }
 
         $buttons = array_merge($buttons, [
-            Button::make($translation['cancel'])->param('orderId', $order->id)->param('messageId', $messageId)->action('cancelOrder'),
+            Button::make($translation['cancel'])->action('onCancelOrder')->param('orderId', $order->id)->param('messageId', $messageId),
             // Button::make($translation['changePayments'])->param('preorderId', $preorderId)->param('messageId', $messageId)->action('changePaymentType'),
             Button::make($translation['update'])->action('onViewOrder')->param('messageId', $messageId)->param('orderId', $orderId),
             Button::make($translation['toMain'])->action('toPreview')->param('messageId', $messageId),
@@ -307,9 +301,11 @@ class OrderAction extends AbstractAction
 
         $keyboard = Keyboard::make()->buttons($buttons);
 
-        $this->chat
+        $respons = $this->chat
             ->replaceKeyboard($messageId, $keyboard)
             ->editCaption($messageId)->message($message)
             ->send();
+
+        Log::info($respons);
     }
 }

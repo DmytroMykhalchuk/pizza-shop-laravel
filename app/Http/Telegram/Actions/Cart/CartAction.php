@@ -60,7 +60,7 @@ class CartAction extends AbstractAction
     public function onChoosePizza(string $messageId, string $pizzaId)
     {
         $backText = __('main.actions.return_back', [], $this->chat->locale);
-
+        $itemCm = __('main.item_cm');
         $mapImage = [
             1 => 'https://images.unsplash.com/photo-1513104890138-7c749659a591?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxleHBsb3JlLWZlZWR8MXx8fGVufDB8fHx8fA%3D%3D',
             2 => 'https://cdn.pixabay.com/photo/2024/04/18/10/41/ai-generated-8704060_640.jpg',
@@ -73,8 +73,11 @@ class CartAction extends AbstractAction
         $pizzaPreview = asset($mapImage[$pizza->id]);
         // $pizzaPreview=asset($pizza->image);
 
-        $sizeButtons = $pizza->sizes->map(function ($size) use ($messageId, $pizza) {
-            return Button::make($size->name . ' ' . $size->diametr_cm . ' ')
+        $sizeButtons = $pizza->sizes->map(function ($size) use ($messageId, $pizza, $itemCm) {
+            Log::info($size);
+            $price = round($pizza->base_price * $size->price_multiplier, 2);
+
+            return Button::make($size->name . ' ' . $size->diameter_cm . $itemCm . ' ' . $price . '$')
                 ->action('onChoosePizzaSize')
                 ->param('messageId', $messageId)
                 ->param('pizzaId', $pizza->id)
@@ -115,9 +118,10 @@ class CartAction extends AbstractAction
             $preorder->pizzas = $pizzas;
         } else {
             $preorder = new Preorder();
-            $preorder->pizzas = $pizzaData;
+            $preorder->pizzas = [$pizzaData];
             $preorder->user_id = $this->chat->user_id;
         }
+
         $preorder->save();
 
         $buttons = [];
@@ -157,6 +161,7 @@ class CartAction extends AbstractAction
             'pizzaId' => $pizzaId,
             'sizeId' => $sizeId,
             'count' => $count,
+            'id' => time(),
         ];
 
         $flagIsEdited = false;
@@ -167,11 +172,13 @@ class CartAction extends AbstractAction
             if ($row['pizzaId'] != $preorderPizza['pizzaId'] || $row['sizeId'] != $preorderPizza['sizeId']) {
                 continue;
             }
+
             $flagIsEdited = true;
-            Log::info('edited');
+
             $row['count'] = isset($row['count'])
                 ? $row['count'] + $preorderPizza['count']
                 : $preorderPizza['count'];
+            $row['id'] = time();
         }
 
         if (!$flagIsEdited) {
@@ -194,13 +201,11 @@ class CartAction extends AbstractAction
         ];
 
         $preorder = Preorder::find($preorderId);
-        $pizzaId = $preorder->pizza['pizzaId'];
 
-        $pizza = Pizza::find($pizzaId);
-        $size = PizzaSize::find($preorder->pizza['sizeId']);
+        $calculatedOrderData = $this->calculateOrderData($preorder);
 
-        $message = $pizza->name . PHP_EOL . PHP_EOL;
-        $message .= $translation['total'] . ': ' . $pizza->base_price * $size->price_multiplier . '$';
+        $message = $calculatedOrderData['message'];
+        $message .= $translation['total'] . ': ' . $calculatedOrderData['total'] . '$';
         $message .= "\n\n";
         $message .= $translation['payment'];
         $message .= '';
@@ -208,22 +213,24 @@ class CartAction extends AbstractAction
         $payments = [];
 
         $payments[] = Button::make('Monobank')
-            ->action("indexCartPayments")
-            ->param('preorderId', $preorder->id)
+            ->action("onChooseMethod")
             ->param('messageId', $messageId)
-            ->param('paymentMethod', 'mono');
+            ->param('preorderId', $preorder->id)
+            ->param('method', 'mono');
 
         $payments[] = Button::make($translation['backText'])
-            ->action("onChoosePizzaSize")
-            ->param('pizzaId', $pizzaId)
+            ->action("showCartConformation")
+            ->param('preorderId', $preorder->id)
             ->param('messageId', $messageId);
 
         $keyboard = Keyboard::make()->buttons($payments);
 
-        $this->chat
+        $response = $this->chat
             ->replaceKeyboard($messageId, $keyboard)
             ->editCaption($messageId)->message($message)
             ->send();
+
+        Log::info($response);
     }
 
     public function messageInputAddress(string $messageId, string $preorderId)
@@ -231,7 +238,7 @@ class CartAction extends AbstractAction
         $translation = [
             'inputAddress' => __('main.input_address'),
             'toMain'       => __('main.actions.to_main'),
-            'back'         => __('main.actions.back'),
+            'back'         => __('main.actions.return_back'),
         ];
 
         $this->chat->last_message_id = $messageId;
@@ -253,7 +260,7 @@ class CartAction extends AbstractAction
             ->send();
     }
 
-    public function onConfirmCartAddress(string $address, array $actionData)
+    public function onConfirmCartAddress(string $address, array $actionData, string $messageId)
     {
         $translation = [
             'yes'     => __('main.actions.yes'),
@@ -265,33 +272,32 @@ class CartAction extends AbstractAction
         $this->chat->action = null;
         $this->chat->action_data = null;
 
-        if (!$preorderId) {
-            return;
+        $preorder = Preorder::find($preorderId);
+        if (!$preorder) {
+            $preorder = Preorder::where('user_id', $this->chat->user_id)->first();
         }
-        $preorder = Preorder::findOrFail($preorderId);
-        $preorderData = $preorder->pizza;
-        $preorderData['address'] = $address;
-        $preorder->pizza = $preorderData;
+        $preorder->address = $address;
         $preorder->save();
 
         $keyboard = Keyboard::make()->buttons([
-            Button::make($translation['no'])->action('reinputCartAddress'),
-            Button::make($translation['yes'])->action('choosePayment'),
+            Button::make($translation['no'])->action('reinputCartAddress')->param('messageId', $messageId)->param('preorderId', $preorder->id),
+            Button::make($translation['yes'])->action('indexCartPayments')->param('messageId', $messageId)->param('preorderId', $preorder->id),
         ])->chunk(2);
 
-        $message =  $this->chat
-            ->photo($this->introImage)
-            ->message($translation['caption'])
-            ->keyboard($keyboard)
-            ->send();
+        $chat = $this->chat->replaceKeyboard($messageId, $keyboard);
+        $this->customEditPhoto($chat, $messageId, $translation['caption'], $this->introImage);
+        // ->photo($this->introImage)
+        // ->message($translation['caption'])
+        // ->keyboard($keyboard)
+        // ->send();
 
 
-        $messageId = $message->telegraphMessageId();
-        $keyboard = Keyboard::make()->buttons([
-            Button::make($translation['no'])->action('reinputCartAddress')->param('messageId', $messageId)->param('preorderId', $preorderId),
-            Button::make($translation['yes'])->action('choosePayment')->param('messageId', $messageId)->param('preorderId', $preorderId),
-        ])->chunk(2);
-        $this->chat->replaceKeyboard($messageId, $keyboard)->send();
+        // $messageId = $message->telegraphMessageId();
+        // $keyboard = Keyboard::make()->buttons([
+        //     Button::make($translation['no'])->action('reinputCartAddress')->param('messageId', $messageId)->param('preorderId', $preorderId),
+        //     Button::make($translation['yes'])->action('indexCartPayments')->param('messageId', $messageId)->param('preorderId', $preorderId),
+        // ])->chunk(2);
+        // $this->chat->replaceKeyboard($messageId, $keyboard)->send();
     }
 
     public function onSizeChoosed($messageId, $preorderId) {}
@@ -307,6 +313,9 @@ class CartAction extends AbstractAction
             'morePizza'  => __('main.actions.more_pizza'),
             'toMain'     => __('main.actions.to_main'),
             'emptyCart'  => __('main.empty_cart'),
+            'continue'   => __('main.actions.proccess_purchase'),
+            'editIcon'   => __('main.actions.edit_icon'),
+            'cancelIcon' => __('main.actions.cancel_icon'),
         ];
 
         if ($preorderId) {
@@ -315,7 +324,7 @@ class CartAction extends AbstractAction
             $preorder = Preorder::where('user_id', $this->chat->user_id)->first();
         }
 
-        if (!$preorder) {
+        if (!$preorder || !$preorder->pizzas || !count($preorder->pizzas)) {
             $keyboard = Keyboard::make()->buttons([
                 Button::make($translation['update'])->action('showCartConformation')->param('messageId', $messageId)->param('preorderId', $preorderId),
                 Button::make($translation['morePizza'])->action('indexPizza')->param('messageId', $messageId),
@@ -330,27 +339,15 @@ class CartAction extends AbstractAction
             return;
         }
         $cartPizzas = $preorder->pizzas;
-
-        $pizzaMap = [];
-        foreach ($cartPizzas as $row) {
-            $newCount = $row['count'] ?? 1;
-
-            $count = isset($pizzaMap[$row['pizzaId']]['count'])
-                ? $pizzaMap[$row['pizzaId']]['count'] + $newCount
-                : $newCount;
-
-            $pizzaMap[$row['pizzaId']] = [
-                'sizeId' => $row['sizeId'],
-                'pizzaId' => $row['pizzaId'],
-                'count' =>   $count,
-            ];
-        }
+        $pizzaIds = array_map(function ($row) {
+            return $row['pizzaId'] ?? 0;
+        }, $cartPizzas);
 
         $message = $translation['store'] . PHP_EOL . PHP_EOL;
+        $pizzaModelMap = Pizza::with('sizes')->find($pizzaIds)->groupBy('id');
+        $cancelOrderButtons = [];
 
-        $pizzaModelMap = Pizza::with('sizes')->find(array_keys($pizzaMap))->groupBy('id');
-
-        foreach ($pizzaMap as $pizzaRow) {
+        foreach ($cartPizzas as $pizzaRow) {
             $pizzaId = $pizzaRow['pizzaId'];
             $sizeId  = $pizzaRow['sizeId'];
             $count   = $pizzaRow['count'];
@@ -358,29 +355,66 @@ class CartAction extends AbstractAction
             $pizza = $pizzaModelMap[$pizzaId]->first();
             $size = $pizza->sizes->where('id', $sizeId)->first();
 
+            $pizzaLabel = $pizza->name . ' (' . strtolower($size->name) . ')';
             $pricePerItem = round($pizza->base_price * $size->price_multiplier, 2);
-            $message .= $pizza->name . ' ' . $pricePerItem . '$' . PHP_EOL;
+            $message .= "$pizzaLabel $pricePerItem $\n";
             $message .= $count . $translation['itemCount'] . ' - ' . round($pricePerItem * $count, 2) . '$ ';
             $message .= PHP_EOL . PHP_EOL;
+
+            $cancelOrderButtons[] = Button::make($pizzaLabel . ' ' . $translation['editIcon'])->action('onEditRow')->param('messageId', $messageId)->param('preorderId', $preorder->id)->param('rowId', $pizzaRow['id']);
+            $cancelOrderButtons[] = Button::make($translation['cancelIcon'])->action('onCancelRow')->param('messageId', $messageId)->param('preorderId', $preorder->id)->param('rowId', $pizzaRow['id']);
         };
 
-        $keyboard = Keyboard::make()->buttons([
-            Button::make($translation['update'])->action('showCartConformation')->param('messageId', $messageId)->param('preorderId', $preorderId),
-            Button::make($translation['morePizza'])->action('indexPizza')->param('messageId', $messageId),
-            Button::make($translation['clearCart'])->action('onClearCart')->param('messageId', $messageId)->param('preorderId', $preorderId),
-            Button::make($translation['toMain'])->action('toPreview')->param('messageId', $messageId),
-        ]);
+        $keyboard = Keyboard::make()
+            ->buttons($cancelOrderButtons)->chunk(2)
+            ->buttons([
+                Button::make($translation['continue'])->action('reinputCartAddress')->param('messageId', $messageId)->param('preorderId', $preorderId),
+                Button::make($translation['update'])->action('showCartConformation')->param('messageId', $messageId)->param('preorderId', $preorderId),
+                Button::make($translation['morePizza'])->action('indexPizza')->param('messageId', $messageId),
+                Button::make($translation['clearCart'])->action('onClearCart')->param('messageId', $messageId)->param('preorderId', $preorderId),
+                Button::make($translation['toMain'])->action('toPreview')->param('messageId', $messageId),
+            ]);
 
-        $this->chat
+        $response = $this->chat
             ->replaceKeyboard($messageId, $keyboard)
             ->editCaption($messageId)
             ->message($message)
             ->send();
+        Log::info($response);
     }
 
     public function onClearCart($messageId)
     {
         Preorder::where('user_id', $this->chat->user_id)->delete();
         $this->showCartConformation($messageId);
+    }
+
+    public function onCancelRow(string $messageId, string $rowId, string $preorderId)
+    {
+        $preorder = Preorder::find($preorderId);
+        $preorder->pizzas = array_filter($preorder->pizzas, function ($pizzaRow) use ($rowId) {
+            return $pizzaRow['id'] != $rowId;
+        });
+
+        $preorder->save();
+
+        $this->showCartConformation($messageId, $preorderId);
+    }
+
+    public function onEditRow($messageId, $preorderId, $rowId)
+    {
+        $preorder = Preorder::find($preorderId);
+
+        $targetPizzaId = 1;
+        $preorder->pizzas = array_filter($preorder->pizzas, function ($pizzaRow) use ($rowId, &$targetPizzaId) {
+            if ($pizzaRow['id'] == $rowId) {
+                $targetPizzaId = $pizzaRow['pizzaId'];
+            }
+            return $pizzaRow['id'] != $rowId;
+        });
+
+        $preorder->save();
+
+        $this->onChoosePizza($messageId, $targetPizzaId);
     }
 }

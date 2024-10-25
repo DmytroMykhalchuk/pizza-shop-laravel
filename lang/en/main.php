@@ -21,6 +21,9 @@ return [
         'prev_pgae' => 'Назад ⏮',
         'clear_cart' => 'Очистити корзину 🛒',
         'cart' => 'Кошик 🛒',
+        'proccess_purchase'=>'Продовжити замовлення 😋',
+        'edit_icon'=>'✏',
+        'cancel_icon'=>'❌',
     ],
     'total' => 'Всього',
     'payment_type' => 'Тип оплати',
@@ -55,6 +58,7 @@ return [
 
     'order_complicity' => 'Склад замовлення',
     'item_count' => 'шт.',
+    'item_cm' => 'см.',
     'order_price' => 'Ціна на момент замовлення: ',
     'manage_orders_text' => 'Керуйте вашими замовленнями тут 🎮 :)',
 

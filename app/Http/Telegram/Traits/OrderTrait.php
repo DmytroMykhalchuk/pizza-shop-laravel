@@ -38,7 +38,7 @@ trait OrderTrait
         $messageId = $this->data->get('messageId');
 
         $this->orderAction->setChat($this->chat);
-        $this->orderAction->onCancelOrder($messageId, $orderId);
+        $this->orderAction->onViewOrder($messageId, $orderId);
     }
 
     public function onConfirmCancelOrder()
@@ -57,6 +57,6 @@ trait OrderTrait
         $userId = $this->chat->user_id;
 
         $this->orderAction->setChat($this->chat);
-        $this->orderAction->onCancelOrder($messageId, $page, $userId);
+        $this->orderAction->indexActiveOrders($messageId, $page, $userId);
     }
 }

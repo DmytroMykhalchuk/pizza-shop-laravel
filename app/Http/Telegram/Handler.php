@@ -3,16 +3,15 @@
 namespace App\Http\Telegram;
 
 use App\Actions\Telegram\TelegramUserAction;
-use App\Http\Services\MonobankService\MonobankService;
 use App\Http\Telegram\Actions\Cart\CartAction;
 use App\Http\Telegram\Actions\Order\OrderAction;
+use App\Http\Telegram\Actions\Seeder\SeederAction;
 use App\Http\Telegram\Traits\BaseHandlers;
 use App\Http\Telegram\Traits\CartTrait;
 use App\Http\Telegram\Traits\NotificationAction;
 use App\Http\Telegram\Traits\OrderTrait;
 use App\Http\Telegram\Traits\ScreenAction;
-use App\Http\Telegram\Traits\SeedersAction;
-use DefStudio\Telegraph\Facades\Telegraph;
+use App\Http\Telegram\Traits\SeederTrait;
 use DefStudio\Telegraph\Handlers\WebhookHandler;
 use DefStudio\Telegraph\Keyboard\Button;
 use DefStudio\Telegraph\Keyboard\Keyboard;
@@ -23,8 +22,8 @@ class Handler extends WebhookHandler
 {
     use BaseHandlers;
     use OrderTrait;
+    use SeederTrait;
     use ScreenAction;
-    use SeedersAction;
     use NotificationAction;
     use CartTrait;
 
@@ -33,12 +32,14 @@ class Handler extends WebhookHandler
     private TelegraphTelegraph $modifiedChat;
     private OrderAction $orderAction;
     private CartAction $cartAction;
+    private SeederAction $seederAction;
 
-    public function __construct(TelegraphTelegraph $chat)
+    public function __construct()
     {
         $this->userAction = new TelegramUserAction();
         $this->orderAction = new OrderAction();
         $this->cartAction = new CartAction();
+        $this->seederAction = new SeederAction();
     }
 
     public function k()

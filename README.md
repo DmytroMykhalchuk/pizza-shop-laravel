@@ -9,3 +9,4 @@ a telegraph:set-webhook
 
 ### TODO
 - Add discount and promo codes
+- Changing payments

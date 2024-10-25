@@ -4,6 +4,8 @@ namespace App\Http\Telegram\Actions;
 
 use App\Models\Notification;
 use App\Models\Order;
+use App\Models\Pizza;
+use App\Models\Preorder;
 use DefStudio\Telegraph\Keyboard\Button;
 use DefStudio\Telegraph\Keyboard\Keyboard;
 use DefStudio\Telegraph\Models\TelegraphChat;
@@ -63,9 +65,9 @@ abstract class AbstractAction
 
     protected function customEditPhoto($chat, string $messageId, string $caption, string $image)
     {
-        Log::info('sending');
-        $chat
-        ->editMedia($messageId)
+        Log::alert('f');
+        $response = $chat
+            ->editMedia($messageId)
             ->photo($image)
             ->withData('media', json_encode([
                 'type' => 'photo',
@@ -84,5 +86,47 @@ abstract class AbstractAction
             $chat = $chat->editCaption($messageId)->message($caption);
             $this->customEditPhoto($chat, $messageId, $caption, $this->introImage);
         }
+    }
+
+    protected function calculateOrderData(Preorder $preorder)
+    {
+        $translation = [
+            'store'     => __('main.order_complicity'),
+            'itemCount' => __('main.item_count'),
+        ];
+
+        $total = 0;
+
+        $pizzaIds = array_map(function ($pizzaRow) {
+            return $pizzaRow['pizzaId'] ?? 0;
+        }, $preorder->pizzas);
+
+        $pizzas = Pizza::with('sizes')->find($pizzaIds);
+        $pizzaModelMap = $pizzas->groupBy('id');
+
+        $message = $translation['store'] . PHP_EOL . PHP_EOL;
+
+        foreach ($preorder->pizzas as $pizzaRow) {
+            $pizzaId = $pizzaRow['pizzaId'];
+            $sizeId  = $pizzaRow['sizeId'];
+            $count   = $pizzaRow['count'];
+
+            $pizza = $pizzaModelMap[$pizzaId]->first();
+            $size = $pizza->sizes->where('id', $sizeId)->first();
+
+            $pricePerItem = round($pizza->base_price * $size->price_multiplier, 2);
+            $total += round($pricePerItem * $count, 2);
+
+            $pricePerItem = round($pizza->base_price * $size->price_multiplier, 2);
+            $message .= $pizza->name . ' ' . $pricePerItem . '$' . PHP_EOL;
+            $message .= $count . $translation['itemCount'] . ' - ' . round($pricePerItem * $count, 2) . '$ ';
+            $message .= PHP_EOL . PHP_EOL;
+        };
+
+        return [
+            'total'    => $total,
+            'pizzaMap' => $pizzas,
+            'message'  => $message,
+        ];
     }
 }

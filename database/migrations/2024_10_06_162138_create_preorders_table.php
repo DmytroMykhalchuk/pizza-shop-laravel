@@ -16,7 +16,7 @@ return new class extends Migration
             $table->json('pizzas')->nullable();
             $table->string('user_id')->unique();
             $table->string('address')->nullable();
-            $table->json('products')->default([]);
+            $table->json('products')->nullable();
             $table->timestamps();
         });
     }

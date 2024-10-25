@@ -45,17 +45,16 @@ trait CartTrait
         $this->cartAction->indexCartPayments($messageId, $preorderId);
     }
 
-    public function onConfirmCartAddress(string $address, array $actionData)
+    public function onConfirmCartAddress(string $address, array $actionData, string $messageId)
     {
         $this->cartAction->setChat($this->chat);
-        $this->cartAction->onConfirmCartAddress($address, $actionData);
+        $this->cartAction->onConfirmCartAddress($address, $actionData, $messageId);
     }
 
     public function reinputCartAddress()
     {
         $messageId = $this->data->get('messageId');
         $preorderId = $this->data->get('preorderId');
-
         $this->cartAction->setChat($this->chat);
         $this->cartAction->messageInputAddress($messageId, $preorderId);
     }
@@ -72,7 +71,7 @@ trait CartTrait
     public function showCartConformation()
     {
         $messageId = $this->data->get('messageId');
-        $preorderId = $this->data->get('preorderId')??'';
+        $preorderId = $this->data->get('preorderId') ?? '';
 
         $this->cartAction->setChat($this->chat);
         $this->cartAction->showCartConformation($messageId, $preorderId);
@@ -89,10 +88,41 @@ trait CartTrait
         $this->cartAction->onSelectCount($messageId, $pizzaId, $sizeId, $count);
     }
 
-    public function onClearCart(){
+    public function onClearCart()
+    {
         $messageId = $this->data->get('messageId');
 
         $this->cartAction->setChat($this->chat);
         $this->cartAction->onClearCart($messageId);
+    }
+
+    public function onCancelRow()
+    {
+        $messageId = $this->data->get('messageId');
+        $preorderId = $this->data->get('preorderId');
+        $rowId = $this->data->get('rowId');
+
+        $this->cartAction->setChat($this->chat);
+        $this->cartAction->onCancelRow($messageId, $rowId, $preorderId);
+    }
+
+    public function onEditRow()
+    {
+        $messageId = $this->data->get('messageId');
+        $rowId = $this->data->get('rowId');
+        $preorderId = $this->data->get('preorderId');
+
+        $this->cartAction->setChat($this->chat);
+        $this->cartAction->onEditRow($messageId, $preorderId, $rowId);
+    }
+
+    public function onChooseMethod()
+    {
+        $messageId = $this->data->get('messageId');
+        $paymentMethod = $this->data->get('method');
+        $preorderId = $this->data->get('preorderId');
+
+        $this->orderAction->setChat($this->chat);
+        $this->orderAction->onConfirmOrder($messageId, $preorderId, $paymentMethod);
     }
 }

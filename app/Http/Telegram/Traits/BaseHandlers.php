@@ -96,11 +96,16 @@ trait BaseHandlers
         $id = $this->message->id();
         $this->chat->deleteMessage($id)->send();
 
-        $this->chat->last_message_id &&
-            $this->deleteMessage($this->chat->last_message_id);
+        // $this->chat->last_message_id &&
+        //     $this->deleteMessage($this->chat->last_message_id);
+        $messageId = $this->chat->last_message_id;
+        if (!$messageId) {
+            Log::alert('no');
+            return;
+        }
 
         if ($action === UserChat::ACTION_INPUT_ADDRESS) {
-            $this->confirmOrderAddress($text, $actionData);
+            $this->onConfirmCartAddress($text, $actionData, $messageId);
         }
         // $this->chat->deleteMessage($id);
         // dd($id);

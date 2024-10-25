@@ -1,37 +1,45 @@
 <?php
 
-namespace App\Http\Telegram\Traits;
+namespace App\Http\Telegram\Actions\Seeder;
 
+use App\Http\Services\MonobankService\MonobankService;
+use App\Http\Telegram\Actions\AbstractAction;
 use App\Models\Notification;
 use App\Models\Order;
 use App\Models\OrderPizza;
 use App\Models\Pizza;
-use DefStudio\Telegraph\Keyboard\Button;
-use DefStudio\Telegraph\Keyboard\Keyboard;
+use DefStudio\Telegraph\Models\TelegraphChat;
 
-trait SeedersAction
+class SeederAction extends AbstractAction
 {
+    private TelegraphChat $chat;
+    private MonobankService $monobankService;
 
-    public function seed()
+    public function setChat(TelegraphChat $chat)
+    {
+        $this->chat = $chat;
+        $this->monobankService = new MonobankService();
+    }
+
+    public function seed(string $messageId)
     {
         $countPizzasNoPayment = 14;
         $countPizzasWithPayment = 3;
         $withPayment = true;
 
         for ($index = 0; $index < $countPizzasNoPayment; $index++) {
-            $this->seedOrder();
+            $this->seedOrder($messageId);
         }
 
         for ($index = 0; $index < $countPizzasWithPayment; $index++) {
-            $this->seedOrder($withPayment);
+            $this->seedOrder($messageId, $withPayment);
         }
 
-        $this->toPreview();
+        $this->toPreview($this->chat, $messageId);
     }
 
-    private function seedOrder($withPayment = false)
+    private function seedOrder(string $messageId, $withPayment = false)
     {
-        $messageId = $this->data->get('messageId');
 
         $pizza = Pizza::inRandomOrder()->first();
         $size = $pizza->sizes()->inRandomOrder()->first();
@@ -52,6 +60,7 @@ trait SeedersAction
         $order->telegraph_chat_id = $this->chat->id;
         $order->message_id = $messageId;
         $order->total = $total;
+        $order->address = 'Some address';
         $order->user_id = $this->chat->user_id;
         $order->save();
 

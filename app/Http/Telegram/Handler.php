@@ -2,44 +2,53 @@
 
 namespace App\Http\Telegram;
 
-use App\Actions\Telegram\TelegramUserAction;
+use App\Http\Telegram\Actions\BaseCommands\BaseCommandsAction;
 use App\Http\Telegram\Actions\Cart\CartAction;
+use App\Http\Telegram\Actions\Notification\NotificationAction;
+use App\Http\Telegram\Actions\Screen\ScreenAction;
 use App\Http\Telegram\Actions\Order\OrderAction;
 use App\Http\Telegram\Actions\Seeder\SeederAction;
-use App\Http\Telegram\Traits\BaseHandlers;
+use App\Http\Telegram\Actions\Settings\SettingsAction;
+use App\Http\Telegram\Traits\BaseCommands;
 use App\Http\Telegram\Traits\CartTrait;
-use App\Http\Telegram\Traits\NotificationAction;
+use App\Http\Telegram\Traits\NotificationTrait;
 use App\Http\Telegram\Traits\OrderTrait;
-use App\Http\Telegram\Traits\ScreenAction;
+use App\Http\Telegram\Traits\ScreenTrait;
 use App\Http\Telegram\Traits\SeederTrait;
+use App\Http\Telegram\Traits\SettingsTrait;
 use DefStudio\Telegraph\Handlers\WebhookHandler;
 use DefStudio\Telegraph\Keyboard\Button;
 use DefStudio\Telegraph\Keyboard\Keyboard;
-use DefStudio\Telegraph\Telegraph as TelegraphTelegraph;
 use Illuminate\Support\Facades\Log;
 
 class Handler extends WebhookHandler
 {
-    use BaseHandlers;
+    use BaseCommands;
+
+    use NotificationTrait;
+    use SettingsTrait;
     use OrderTrait;
     use SeederTrait;
-    use ScreenAction;
-    use NotificationAction;
     use CartTrait;
+    use ScreenTrait;
 
-    private string $defaultLocale = 'en';
-    private TelegramUserAction $userAction;
-    private TelegraphTelegraph $modifiedChat;
     private OrderAction $orderAction;
     private CartAction $cartAction;
     private SeederAction $seederAction;
+    private SettingsAction $settingsAction;
+    private NotificationAction $notificationAction;
+    private ScreenAction $screenAction;
+    private BaseCommandsAction $baseCommandAction;
 
     public function __construct()
     {
-        $this->userAction = new TelegramUserAction();
         $this->orderAction = new OrderAction();
         $this->cartAction = new CartAction();
         $this->seederAction = new SeederAction();
+        $this->settingsAction = new SettingsAction();
+        $this->notificationAction = new NotificationAction();
+        $this->screenAction = new ScreenAction();
+        $this->baseCommandAction = new BaseCommandsAction();
     }
 
     public function k()
@@ -112,54 +121,6 @@ class Handler extends WebhookHandler
     }
 }
 
-// public function rk()
-// {
-    // Telegraph::message('hello world')
-    //     ->replyKeyboard(ReplyKeyboard::make()->buttons([
-    //         ReplyButton::make('foo')->requestPoll(),
-    //         ReplyButton::make('bar')->requestQuiz(),
-    //         ReplyButton::make('baz')->webApp('https://webapp.dev'),
-    //     ]))->send();
-
-    // $keyboard = ReplyKeyboard::make()
-    //     ->row([
-    //         ReplyButton::make('Send Contact')->requestContact(),
-    //         ReplyButton::make('Send Location')->requestLocation(),
-    //     ])
-    //     ->row([
-    //         ReplyButton::make('Quiz')->requestQuiz(),
-    //     ]);
-
-
-    // $keyboard = ReplyKeyboard::make()
-    //     ->button('Text')
-    //     ->button('Send Contact')->requestContact()
-    //     ->button('Send Location')->requestLocation()
-    //     ->button('Create Quiz')->requestQuiz()
-    //     ->button('Create Poll')->requestPoll()
-    //     ->button('Start WebApp')->webApp('https://web.app.dev');
-
-    // $keyboard = ReplyKeyboard::make()
-    //     ->button('Send Contact')->requestContact()
-    //     ->button('Send Location')->requestLocation()
-    //     ->resize();
-
-    // $keyboard = ReplyKeyboard::make()
-    //     ->button('Text')
-    //     ->button('Send Location')->requestLocation()
-    //     ->oneTime();
-
-    // $keyboard = ReplyKeyboard::make()
-    // ->button('Text')
-    // ->button('Send Location')->requestLocation()
-    // ->selective();
-
-    // $this->chat->message('fd')->replyKeyboard($keyboard)->send();
-// }
-
-
-// public function btn()
-// {
 //     $this->chat->message('hello world')
 //         ->keyboard(Keyboard::make()->buttons([
 //             Button::make('Delete')->action('delete')->param('id', '42'),

@@ -27,18 +27,21 @@ class OrderAction extends AbstractAction
         Order::STATUS_COMPLETED => '🏁',
     ];
 
-    public function __construct() {}
+    public function __construct()
+    {
+        $this->monobankService = new MonobankService();
+    }
 
     public function setChat(TelegraphChat $chat)
     {
         $this->chat = $chat;
-        $this->monobankService = new MonobankService();
+        app()->setLocale($this->chat->locale);
     }
 
     public function onConfirmOrder(string $messageId, string $preorderId, string $paymentMethod)
     {
         $translation = [
-            'toMain'         => __('main.actions.to_main', [], $this->chat->locale),
+            'toMain'         => __('main.actions.to_main'),
             'cancel'         => __('main.actions.cancel'),
             'payNow'         => __('main.actions.pay_now'),
             'changePayments' => __('main.actions.change_type_of_payments'),
@@ -119,18 +122,18 @@ class OrderAction extends AbstractAction
 
         $order = Order::findOrFail($orderId);
 
-        $message = $order->status !== Order::STATUS_WAITING
+        $message = $order->status === Order::STATUS_WAITING
             ? $translation['canceled_posible'] . ($order->paid_at === Order::MONOBANK_TYPE ? $translation['canceled_posible_recharge'] : '')
-            : $translation['canceled_posible'];
+            : $translation['canceled_imposible'];
 
-        $keyboard = $order->status !== Order::STATUS_WAITING
+        $keyboard = $order->status === Order::STATUS_WAITING
             ? Keyboard::make()->buttons([
-                Button::make($translation['ok'])->action('toPreview')->param('messageId', $messageId),
-            ])
-            : Keyboard::make()->buttons([
                 Button::make($translation['yes'])->action('onConfirmCancelOrder')->param('messageId', $messageId)->param('orderId', $orderId),
                 Button::make($translation['no'])->action('onViewOrder')->param('messageId', $messageId)->param('orderId', $orderId),
-            ])->chunk(2);
+            ])->chunk(2)
+            : Keyboard::make()->buttons([
+                Button::make($translation['ok'])->action('toPreview')->param('messageId', $messageId),
+            ]);
 
         $chat = $this->chat
             ->replaceKeyboard($messageId, $keyboard);
@@ -146,7 +149,7 @@ class OrderAction extends AbstractAction
             'update'   => __('main.actions.update'),
             'backText' => __('main.actions.to_main'),
             'next'     => __('main.actions.next_page'),
-            'prev'     => __('main.actions.prev_pgae'),
+            'prev'     => __('main.actions.prev_page'),
             'caption'  => __('main.manage_orders_text'),
         ];
 
@@ -166,10 +169,10 @@ class OrderAction extends AbstractAction
 
         $paginationButtons = [];
         if ($page != 1)
-            $paginationButtons[] = Button::make($translation['prev'])->action('activeOrders')->param('messageId', $messageId)->param('page', $page - 1);
+            $paginationButtons[] = Button::make($translation['prev'])->action('indexActiveOrders')->param('messageId', $messageId)->param('page', $page - 1);
 
         if ($paginator->hasMorePages()) {
-            $paginationButtons[] = Button::make($translation['next'])->action('activeOrders')->param('messageId', $messageId)->param('page', $page + 1);
+            $paginationButtons[] = Button::make($translation['next'])->action('indexActiveOrders')->param('messageId', $messageId)->param('page', $page + 1);
         }
 
         $buttons = [];
@@ -190,7 +193,7 @@ class OrderAction extends AbstractAction
         count($paginationButtons) && $keyboard->row($paginationButtons);
 
         $keyboard->buttons([
-            Button::make($translation['update'])->action("activeOrders")->param('messageId', $messageId),
+            Button::make($translation['update'])->action("indexActiveOrders")->param('messageId', $messageId),
             Button::make($translation['backText'])->action("toPreview")->param('messageId', $messageId),
         ]);
 
@@ -232,7 +235,7 @@ class OrderAction extends AbstractAction
             $message .= "\n" . $translation['recharged'];
         }
 
-        $keyboard=Keyboard::make()->buttons($buttons);
+        $keyboard = Keyboard::make()->buttons($buttons);
 
         $this->chat
             ->replaceKeyboard($messageId, $keyboard)
@@ -248,7 +251,7 @@ class OrderAction extends AbstractAction
         }])->findOrFail($orderId);
 
         $translation = [
-            'backText'       => __('main.actions.return_back', [], $this->chat->locale),
+            'backText'       => __('main.actions.return_back'),
             'cancel'         => __('main.actions.cancel'),
             'payNow'         => __('main.actions.pay_now'),
             'changePayments' => __('main.actions.change_type_of_payments'),
@@ -273,27 +276,32 @@ class OrderAction extends AbstractAction
         $message .= $translation['status'] . ': ' . $translation['orderStatus'] . PHP_EOL;
         $message .= $translation['address'] . ': ' . $order->address . PHP_EOL;
 
-        $message .= $translation['payment'] . ': ';
 
-        if ($order->payment_type == Order::MONOBANK_TYPE)
+        if ($order->payment_type == Order::MONOBANK_TYPE) {
+            $message .= $translation['payment'] . ': ';
             $message .= $order->paid_at
                 ? $translation['statusPaid']
                 : $translation['statusNotPaid'];
+            $message .= PHP_EOL;
+        }
 
-        $message .= PHP_EOL . PHP_EOL . $translation['complicity'] . ': ' . PHP_EOL;
+        $message .= PHP_EOL . $translation['complicity'] . ': ' . PHP_EOL;
         foreach ($order->pizzas as $orderPizza) {
             $message .= '- ' . $orderPizza->pizza->name . ' ' . $orderPizza->size->name . ' ';
-            $message .= round($orderPizza->size->price_multiplier * $orderPizza->pizza->base_price, 2) . '$ ' . $orderPizza->count .$translation['itemCount'];
+            $message .= round($orderPizza->size->price_multiplier * $orderPizza->pizza->base_price, 2) . '$ ' . $orderPizza->count . $translation['itemCount'];
             $message .= PHP_EOL;
         }
 
         $buttons = [];
+
         if (!$order->paid_at && $order->invoice_link) {
             $buttons[] = Button::make($translation['payNow'])->url($order->invoice_link);
         }
 
+        if ($order->status === Order::STATUS_WAITING) {
+            $buttons[] = Button::make($translation['cancel'])->action('onCancelOrder')->param('orderId', $order->id)->param('messageId', $messageId);
+        }
         $buttons = array_merge($buttons, [
-            Button::make($translation['cancel'])->action('onCancelOrder')->param('orderId', $order->id)->param('messageId', $messageId),
             // Button::make($translation['changePayments'])->param('preorderId', $preorderId)->param('messageId', $messageId)->action('changePaymentType'),
             Button::make($translation['update'])->action('onViewOrder')->param('messageId', $messageId)->param('orderId', $orderId),
             Button::make($translation['toMain'])->action('toPreview')->param('messageId', $messageId),

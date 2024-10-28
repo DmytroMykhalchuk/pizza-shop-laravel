@@ -15,10 +15,15 @@ class SeederAction extends AbstractAction
     private TelegraphChat $chat;
     private MonobankService $monobankService;
 
+    public function __construct()
+    {
+        $this->monobankService = new MonobankService();
+    }
+
     public function setChat(TelegraphChat $chat)
     {
         $this->chat = $chat;
-        $this->monobankService = new MonobankService();
+        app()->setLocale($this->chat->locale);
     }
 
     public function seed(string $messageId)

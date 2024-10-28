@@ -28,13 +28,14 @@ class CartAction extends AbstractAction
     public function setChat(TelegraphChat $chat)
     {
         $this->chat = $chat;
+        app()->setLocale($this->chat->locale);
     }
 
     public function indexPizza(string $messageId)
     {
         $translation = [
-            'message'  => __('main.choose_pizza', [], $this->chat->locale),
-            'backText' => __('main.actions.return_back', [], $this->chat->locale),
+            'message'  => __('main.choose_pizza'),
+            'backText' => __('main.actions.return_back'),
         ];
 
         $pizzaButtons = Pizza::get()
@@ -59,7 +60,7 @@ class CartAction extends AbstractAction
 
     public function onChoosePizza(string $messageId, string $pizzaId)
     {
-        $backText = __('main.actions.return_back', [], $this->chat->locale);
+        $backText = __('main.actions.return_back');
         $itemCm = __('main.item_cm');
         $mapImage = [
             1 => 'https://images.unsplash.com/photo-1513104890138-7c749659a591?fm=jpg&q=60&w=3000&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxleHBsb3JlLWZlZWR8MXx8fGVufDB8fHx8fA%3D%3D',
@@ -195,7 +196,7 @@ class CartAction extends AbstractAction
     public function indexCartPayments(string $messageId, string $preorderId)
     {
         $translation = [
-            'backText' => __('main.actions.return_back', [], $this->chat->locale),
+            'backText' => __('main.actions.return_back'),
             'total'    => __('main.total'),
             'payment'  => __('main.choose_payment_method'),
         ];
@@ -265,7 +266,7 @@ class CartAction extends AbstractAction
         $translation = [
             'yes'     => __('main.actions.yes'),
             'no'      => __('main.actions.no'),
-            'caption' => __('main.is_that_your_address', ['addrees' => $address]),
+            'caption' => __('main.is_that_your_address', ['address' => $address]),
         ];
 
         $preorderId = $actionData['preorderId'];
@@ -392,6 +393,7 @@ class CartAction extends AbstractAction
     public function onCancelRow(string $messageId, string $rowId, string $preorderId)
     {
         $preorder = Preorder::find($preorderId);
+
         $preorder->pizzas = array_filter($preorder->pizzas, function ($pizzaRow) use ($rowId) {
             return $pizzaRow['id'] != $rowId;
         });

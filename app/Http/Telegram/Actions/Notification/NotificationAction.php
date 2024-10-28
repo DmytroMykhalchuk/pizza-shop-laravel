@@ -1,35 +1,42 @@
 <?php
 
-namespace App\Http\Telegram\Traits;
+namespace App\Http\Telegram\Actions\Notification;
 
 use App\Http\Services\Paginator\PaginatorService;
+use App\Http\Telegram\Actions\AbstractAction;
 use App\Models\Notification;
 use DefStudio\Telegraph\Keyboard\Button;
 use DefStudio\Telegraph\Keyboard\Keyboard;
-use Illuminate\Support\Facades\Log;
+use DefStudio\Telegraph\Models\TelegraphChat;
 
-trait NotificationAction
+class NotificationAction extends AbstractAction
 {
-    private int $limit = 10;
+    private TelegraphChat $chat;
+    
+    private int $paginationLimit = 10;
 
-    public function indexNotification()
+    public function setChat(TelegraphChat $chat)
     {
-        $page = $this->data->get('page') ?? 1;
-        $messageId = $this->data->get('messageId');
+        $this->chat = $chat;
+        app()->setLocale($this->chat->locale);
+    }
+
+    public function indexNotification(string $messageId, int $page): void
+    {
         $userId = $this->chat->user_id;
 
         $translation = [
             'update'   => __('main.actions.update'),
             'backText' => __('main.actions.to_main'),
             'next'     => __('main.actions.next_page'),
-            'prev'     => __('main.actions.prev_pgae'),
+            'prev'     => __('main.actions.prev_page'),
             'caption'  => __('main.notifications.items'),
         ];
 
         $notificationQuery = Notification::where('user_id', $userId)
             ->orderBy('created_at', 'desc');
 
-        $paginatorService = new PaginatorService($page, $this->limit);
+        $paginatorService = new PaginatorService($page, $this->paginationLimit);
         $paginator = $paginatorService->paginate($notificationQuery);
 
         $paginationButtons = [];
@@ -72,11 +79,8 @@ trait NotificationAction
             ->send();
     }
 
-    public function showNotification()
+    public function showNotification(string $messageId, string $notificationId): void
     {
-        $messageId = $this->data->get('messageId');
-        $notificationId = $this->data->get('notificationId');
-
         $translation = [
             'update'  => __('main.actions.update'),
             'caption' => __('main.notifications.items'),
@@ -93,7 +97,7 @@ trait NotificationAction
         ]);
         $message = $translation['caption'] . PHP_EOL . PHP_EOL;
         $message .= $notification->message . PHP_EOL . PHP_EOL;
-        $message.=$notification->created_at->format('d-m-Y H:i');
+        $message .= $notification->created_at->format('d-m-Y H:i');
 
         $this->chat
             ->replaceKeyboard($messageId, $keyboard)
@@ -102,7 +106,7 @@ trait NotificationAction
             ->send();
     }
 
-    private function readNotifications(array $notifications)
+    private function readNotifications(array $notifications): void
     {
         $unreaded = array_filter($notifications, function ($notification) {
             return !$notification->is_checked;

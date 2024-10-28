@@ -25,6 +25,7 @@ abstract class AbstractAction
         $title = __('main.intro_title', [], $chat->locale);
         $text = __('main.intro_description', [], $chat->locale);
         $caption = $title . "\n\n\n" . $text;
+        $caption .= "\n\n\nFor testing payment use card 424242... with any other properties :)";
 
         $keyboard = $this->getPreviewKeyboard($chat, $messageId);
 
@@ -36,16 +37,27 @@ abstract class AbstractAction
 
     protected function getPreviewKeyboard($chat, string $messageId)
     {
+        $chat->last_message_id = null;
+        $chat->action = null;
+        $chat->action_data = null;
+        $chat->save();
+        
         $userId = $chat->user_id;
         $ordersCount = Order::where('user_id', $userId)->count();
         $notificationCount = Notification::where('user_id', $userId)->where('is_checked', false)->count();
 
         $translation = [
-            'orderPizza'    => __('main.actions.order_pizza', [], $chat->locale),
-            'notifications' => __('main.actions.notifications', [], $chat->locale),
-            'activeOrders'  => __('main.actions.active_orders', [], $chat->locale) . $ordersCount,
+            'orderPizza'    => __('main.actions.order_pizza'),
+            'notifications' => __('main.actions.notifications'),
+            'activeOrders'  => __('main.actions.active_orders') . $ordersCount,
             'update'        => __('main.actions.update'),
+            'cart'          => __('main.actions.cart'),    
+            'settings'      => __('main.actions.settings'),
         ];
+
+        Log::alert($translation);
+        Log::alert($chat->locale);
+        Log::alert(app()->getLocale());
 
         $caption = $translation['notifications'];
         if ($notificationCount) {
@@ -53,10 +65,12 @@ abstract class AbstractAction
         }
 
         $keyboard = Keyboard::make()->buttons([
-            Button::make($translation['orderPizza'])->action("orderPizza")->param('messageId', $messageId),
+            Button::make($translation['orderPizza'])->action("indexPizza")->param('messageId', $messageId),
             Button::make($caption)->action("indexNotification")->param('messageId', $messageId),
-            Button::make($translation['activeOrders'])->action("activeOrders")->param('messageId', $messageId),
+            Button::make($translation['activeOrders'])->action("indexActiveOrders")->param('messageId', $messageId),
             Button::make($translation['update'])->action("toPreview")->param('messageId', $messageId),
+            Button::make($translation['cart'])->action("showCartConformation")->param('messageId', $messageId),
+            Button::make($translation['settings'])->action("showSettings")->param('messageId', $messageId),
             Button::make('Seed +20 orders 💻')->action("seed")->param('messageId', $messageId),
         ]);
 

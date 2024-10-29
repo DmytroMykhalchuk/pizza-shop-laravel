@@ -38,7 +38,7 @@ class CartAction extends AbstractAction
             'backText' => __('main.actions.return_back'),
         ];
 
-        $pizzaButtons = Pizza::get()
+        $pizzaButtons = Pizza::withTranslation()->get()
             ->map(function ($pizza) use ($messageId) {
                 return Button::make($pizza->name . ' ' . $pizza->base_price . '$')
                     ->action("onChoosePizza")
@@ -70,12 +70,11 @@ class CartAction extends AbstractAction
             5 => 'https://s2-oglobo.glbimg.com/0vdubgDan1JOW67cMl2krKV-a_s=/0x0:3568x3568/888x0/smart/filters:strip_icc()/i.s3.glbimg.com/v1/AUTH_da025474c0c44edd99332dddb09cabe8/internal_photos/bs/2023/H/L/kRho18SPyam1rwl0z5hQ/side-view-pizza-with-chopped-pepper-board-cookware.jpg',
         ];
 
-        $pizza = Pizza::findOrFail($pizzaId);
+        $pizza = Pizza::withTranslation()->withSizesTranslation()->findOrFail($pizzaId);
         $pizzaPreview = asset($mapImage[$pizza->id]);
         // $pizzaPreview=asset($pizza->image);
 
         $sizeButtons = $pizza->sizes->map(function ($size) use ($messageId, $pizza, $itemCm) {
-            Log::info($size);
             $price = round($pizza->base_price * $size->price_multiplier, 2);
 
             return Button::make($size->name . ' ' . $size->diameter_cm . $itemCm . ' ' . $price . '$')
@@ -230,8 +229,6 @@ class CartAction extends AbstractAction
             ->replaceKeyboard($messageId, $keyboard)
             ->editCaption($messageId)->message($message)
             ->send();
-
-        Log::info($response);
     }
 
     public function messageInputAddress(string $messageId, string $preorderId)
@@ -287,18 +284,6 @@ class CartAction extends AbstractAction
 
         $chat = $this->chat->replaceKeyboard($messageId, $keyboard);
         $this->customEditPhoto($chat, $messageId, $translation['caption'], $this->introImage);
-        // ->photo($this->introImage)
-        // ->message($translation['caption'])
-        // ->keyboard($keyboard)
-        // ->send();
-
-
-        // $messageId = $message->telegraphMessageId();
-        // $keyboard = Keyboard::make()->buttons([
-        //     Button::make($translation['no'])->action('reinputCartAddress')->param('messageId', $messageId)->param('preorderId', $preorderId),
-        //     Button::make($translation['yes'])->action('indexCartPayments')->param('messageId', $messageId)->param('preorderId', $preorderId),
-        // ])->chunk(2);
-        // $this->chat->replaceKeyboard($messageId, $keyboard)->send();
     }
 
     public function onSizeChoosed($messageId, $preorderId) {}
@@ -345,7 +330,12 @@ class CartAction extends AbstractAction
         }, $cartPizzas);
 
         $message = $translation['store'] . PHP_EOL . PHP_EOL;
-        $pizzaModelMap = Pizza::with('sizes')->find($pizzaIds)->groupBy('id');
+
+        $pizzaModelMap = Pizza::withTranslation()
+            ->withSizesTranslation()
+            ->find($pizzaIds)
+            ->groupBy('id');
+
         $cancelOrderButtons = [];
 
         foreach ($cartPizzas as $pizzaRow) {
@@ -381,7 +371,6 @@ class CartAction extends AbstractAction
             ->editCaption($messageId)
             ->message($message)
             ->send();
-        Log::info($response);
     }
 
     public function onClearCart($messageId)

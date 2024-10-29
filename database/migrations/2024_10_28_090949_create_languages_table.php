@@ -11,13 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('pizza_sizes', function (Blueprint $table) {
+        Schema::create('languages', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('pizza_id')->constrained()->onDelete('cascade');
-            $table->decimal('price_multiplier', 5, 2);
-            $table->decimal('diameter_cm', 5, 2);
-            $table->tinyInteger('weight_multiplier', false, true);
-            $table->tinyText('size_code');
+            $table->string('locale')->unique();
+            $table->string('name');
             $table->timestamps();
         });
     }
@@ -27,6 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('pizza_sizes');
+        Schema::dropIfExists('languages');
     }
 };

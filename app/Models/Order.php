@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Order extends Model
@@ -71,8 +72,20 @@ class Order extends Model
         );
     }
 
-    public function pizzas(): HasMany
+    public function pizzas(): HasManyThrough
+    {
+        return $this->hasManyThrough(Pizza::class, OrderPizza::class, 'order_id', 'id', 'id', 'pizza_id');
+    }
+
+    public function orderPizzas(): HasMany
     {
         return $this->hasMany(OrderPizza::class, 'order_id', 'id');
+    }
+
+    public function scopeWithPizzaAndSize($query)
+    {
+        $query->with(['orderPizzas' => function ($query) {
+            $query->withSizeTranslation()->withPizzaTranslation();
+        }]);
     }
 }

@@ -25,9 +25,22 @@ class OrderPizza extends Model
         return $this->hasOne(PizzaSize::class, 'id', 'pizza_size_id');
     }
 
-    
     public function pizza(): HasOne
     {
         return $this->hasOne(Pizza::class, 'id', 'pizza_id');
+    }
+
+    public function scopeWithSizeTranslation($query)
+    {
+        $query->with(['size' => function ($query) {
+            $query->withTranslation();
+        }]);
+    }
+
+    public function scopeWithPizzaTranslation($query)
+    {
+        $query->with(['pizza' => function ($query) {
+            $query->withTranslation();
+        }]);
     }
 }

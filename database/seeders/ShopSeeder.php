@@ -20,6 +20,7 @@ class ShopSeeder extends Seeder
             'slug' => 'drinks',
         ],
     ];
+    
     /**
      * Run the database seeds.
      */

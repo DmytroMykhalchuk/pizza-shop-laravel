@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -22,6 +21,8 @@ class DatabaseSeeder extends Seeder
 
 
 
+        $this->call(LanguageSeeder::class);
+        $this->call(PizzaRelativesSeeder::class);
         $this->call(TelegramSeeder::class);
         $this->call(PizzaSeeder::class);
         $this->call(ShopSeeder::class);

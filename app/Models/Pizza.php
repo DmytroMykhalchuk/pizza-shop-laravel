@@ -6,16 +6,23 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Astrotomic\Translatable\Contracts\Translatable as TranslatableContract;
+use Astrotomic\Translatable\Translatable;
 
-class Pizza extends Model
+class Pizza extends Model implements TranslatableContract
 {
+    use Translatable;
     use HasFactory;
 
     protected $table = 'pizzas';
 
-    protected $fillable = [
+    public $translatedAttributes = [
         'name',
         'description',
+        'detail',
+    ];
+
+    protected $fillable = [
         'base_price',
         'image',
     ];
@@ -28,6 +35,13 @@ class Pizza extends Model
     public function sizes(): HasMany
     {
         return $this->hasMany(PizzaSize::class);
+    }
+
+    public function scopeWithSizesTranslation($query)
+    {
+        $query->with('sizes', function ($query) {
+            $query->withTranslation();
+        });
     }
 
     public function recommendedPorducts(): BelongsToMany

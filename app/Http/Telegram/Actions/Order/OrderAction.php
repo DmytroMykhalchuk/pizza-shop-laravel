@@ -51,14 +51,12 @@ class OrderAction extends AbstractAction
             'address'        => __('main.address'),
         ];
 
-
         $preorder = Preorder::find($preorderId);
         $orderData = $this->calculateOrderData($preorder);
 
         $total = $orderData['total'];
 
         $message = $orderData['message'];
-        $message .= "\n\n";
         $message .= $translation['payment'] . ": monobank\n";
         $message .= $translation['address'] . ": " . $preorder->address;
         $message .= '';
@@ -245,10 +243,7 @@ class OrderAction extends AbstractAction
 
     public function onViewOrder(string $messageId, string $orderId)
     {
-        $order = Order::with(['pizzas' => function ($query) {
-            $query->with('size')->with('pizza');
-            return $query;
-        }])->findOrFail($orderId);
+        $order = Order::withPizzaAndSize()->findOrFail($orderId);
 
         $translation = [
             'backText'       => __('main.actions.return_back'),
@@ -286,7 +281,7 @@ class OrderAction extends AbstractAction
         }
 
         $message .= PHP_EOL . $translation['complicity'] . ': ' . PHP_EOL;
-        foreach ($order->pizzas as $orderPizza) {
+        foreach ($order->orderPizzas as $orderPizza) {
             $message .= '- ' . $orderPizza->pizza->name . ' ' . $orderPizza->size->name . ' ';
             $message .= round($orderPizza->size->price_multiplier * $orderPizza->pizza->base_price, 2) . '$ ' . $orderPizza->count . $translation['itemCount'];
             $message .= PHP_EOL;
@@ -313,7 +308,5 @@ class OrderAction extends AbstractAction
             ->replaceKeyboard($messageId, $keyboard)
             ->editCaption($messageId)->message($message)
             ->send();
-
-        Log::info($respons);
     }
 }

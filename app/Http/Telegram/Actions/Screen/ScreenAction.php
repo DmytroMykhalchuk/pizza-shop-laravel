@@ -81,5 +81,7 @@ class ScreenAction extends AbstractAction
             : $user->languageCode() ?? $this->defaultLocale;
 
         $this->chat->save();
+
+        app()->setLocale($this->chat->locale);
     }
 }

@@ -80,7 +80,7 @@ return [
     'input_address' => 'Введіть ваш адрес 🏡',
     'address' => 'Адрес',
     'reset_message_text' => '💛',
-    'is_that_your_address' => 'Це ваш адрес ":addrees"?',
+    'is_that_your_address' => 'Це ваш адрес ":address"?',
     'select_count' => 'Оберіть кількість',
     'empty_cart' => 'Кошик порожній 😭',
 

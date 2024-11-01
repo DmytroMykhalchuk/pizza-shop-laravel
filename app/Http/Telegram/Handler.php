@@ -16,6 +16,7 @@ use App\Http\Telegram\Traits\OrderTrait;
 use App\Http\Telegram\Traits\ScreenTrait;
 use App\Http\Telegram\Traits\SeederTrait;
 use App\Http\Telegram\Traits\SettingsTrait;
+use DefStudio\Telegraph\Facades\Telegraph;
 use DefStudio\Telegraph\Handlers\WebhookHandler;
 use DefStudio\Telegraph\Keyboard\Button;
 use DefStudio\Telegraph\Keyboard\Keyboard;
@@ -118,6 +119,14 @@ class Handler extends WebhookHandler
                 Button::make(env('FRONTEND_URL'))->webApp(env('FRONTEND_URL')),
                 // Button::make('Web App')->webApp('https://web-app.test.it'),
             ]))->send();
+    }
+
+    public function web()
+    {
+        $messageId = $this->message->id();
+        $this->chat->deleteMessage($messageId)->send();
+
+        Telegraph::setChatMenuButton()->webApp("Pizza 🍕", env('FRONTEND_URL'))->send();
     }
 }
 

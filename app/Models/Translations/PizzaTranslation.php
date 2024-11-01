@@ -2,8 +2,10 @@
 
 namespace App\Models\Translations;
 
+use App\Models\Pizza;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PizzaTranslation extends Model
 {
@@ -19,4 +21,16 @@ class PizzaTranslation extends Model
     ];
 
     public $timestamps = false;
+
+    public function pizza(): BelongsTo
+    {
+        return $this->belongsTo(Pizza::class, 'id', 'pizza_id');
+    }
+
+    public function scopeWithPizzaSize($query): void
+    {
+        $query->with(['pizza' => function ($query) {
+            $query->with('sizes');
+        }]);
+    }
 }
